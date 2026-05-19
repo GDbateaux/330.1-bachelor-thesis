@@ -29,13 +29,15 @@ StateA -> StateB [when expression] [with prob p]
 ## Built-in Function
 The following function can be used in the expressions transitions (`when`) :
 
-### count_neighbors
-Returns the number of neighbors that are currently in the given state.
+### count_neighbors (or # shorthand)
+Returns the number of neighbors that are currently in the given state. You can either use the count_neighbors(State) function or the shorter prefix #State.
 
-#### Example
-```Alive -> Dead when count_neighbours(Alive) < 2```
+#### Examples
+```Alive -> Dead when count_neighbors(Alive) < 2```
 
-In this example, an Alive cell dies if it has fewer than 2 Alive neighbours.
+```Alive -> Dead when #Alive < 2```
+
+These examples have the same meaning: an Alive cell dies if it has fewer than 2 Alive neighbors.
 
 ## Examples
 ### Example: Game of Life
@@ -98,7 +100,7 @@ automaton Wireworld {
     rules {
         ElectronHead -> ElectronTail
         ElectronTail -> Conductor
-        Conductor -> ElectronHead when count_neighbors(ElectronHead) == 1 or count_neighbors(ElectronHead) == 2
+        Conductor -> ElectronHead when #ElectronHead == 1 or #ElectronHead == 2
     }
 }
 ```
@@ -163,7 +165,8 @@ equality = comparison  [ ("==" | "!=") comparison ] ;
 comparison = term [ ( "<" | "<=" | ">" | ">=" ) term] ;
 term = factor { ( "-" | "+" ) factor } ;
 factor = primary  { ( "*" | "/" ) primary} ;
-primary = number | function_call | "(" expression ")" | identifier ;
+primary = number | function_call | neighbor_shortcut | "(" expression ")" | identifier ;
+neighbor_shortcut = "#" identifier ;
 
 (*function*)
 function_call = identifier "(" [ arg_list ] ")" ;
