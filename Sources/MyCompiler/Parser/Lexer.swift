@@ -17,14 +17,16 @@ public struct Lexer{
     /// Initializes a new Lexer with the specified source string.
     ///
     /// - Parameter source: The source code string to be tokenized.
-    init(source: String) {
+    init(_ source: String) {
         self.source = source
         self.start = source.startIndex
         self.current = source.startIndex
     }
 
     /// Scans the source string and populates the tokens array.
-    mutating func scanTokens() throws {
+    /// 
+    /// - Returns: The list of scanned tokens
+    mutating func scanTokens() throws -> [Token] {
         while !isAtEnd(){
             start = current
             let c: Character = advance()
@@ -43,12 +45,12 @@ public struct Lexer{
 
                 case "=":
                     guard match("=") else {
-                        throw LexerError(message: "Unexpected '=' (only '==' is allowed)", line: line)
+                        throw CompilerError.LexerError(message: "Unexpected '=' (only '==' is allowed)", line: line)
                     }
                     addToken(TokenType.equalEqual)
                 case "!":
                     guard match("=") else {
-                        throw LexerError(message: "Unexpected '!' (only '!=' is allowed)", line: line)
+                        throw CompilerError.LexerError(message: "Unexpected '!' (only '!=' is allowed)", line: line)
                     }
                     addToken(TokenType.notEqual)
                 case "-": 
@@ -69,10 +71,12 @@ public struct Lexer{
                         takeIdentifier()
                     }
                     else {
-                        throw LexerError(message: "Unexpected character '\(c)'", line: line)
+                        throw CompilerError.LexerError(message: "Unexpected character '\(c)'", line: line)
                     }
             }
         }
+        addToken(TokenType.eof)
+        return tokens
     }
 
     /// Consume and returns the next character in the source string
@@ -164,8 +168,11 @@ public struct Lexer{
             while let char = peek(), isDigit(char) {
                 _ = advance()
             }
+            addToken(TokenType.float)
         }
-        addToken(TokenType.number)
+        else {
+            addToken(TokenType.integer)
+        }
     }
 
     /// Consumes an identifier from the source string

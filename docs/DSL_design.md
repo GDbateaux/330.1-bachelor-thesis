@@ -149,9 +149,9 @@ world_block = "world" "{" { world_element } "}" ;
 world_element = states_def | neighborhood_def | dimension_def ;
 
 states_def = "states" "{" identifier { "," identifier } "}" ;
-neighborhood_def = "neighborhood" ":"  neighborhood_type "(" number ")" ;
+neighborhood_def = "neighborhood" ":"  neighborhood_type "(" integer ")" ;
 neighborhood_type = "Moore" | "VonNeumann" ;
-dimension_def = "dimension" ":" number ;
+dimension_def = "dimension" ":" integer ;
 
 (*rules*)
 rules_block = "rules" "{" {rule} "}" ;
@@ -164,16 +164,19 @@ and_expr = equality { "and" equality } ;
 equality = comparison  [ ("==" | "!=") comparison ] ;
 comparison = term [ ( "<" | "<=" | ">" | ">=" ) term] ;
 term = factor { ( "-" | "+" ) factor } ;
-factor = primary  { ( "*" | "/" ) primary} ;
-primary = number | function_call | neighbor_shortcut | "(" expression ")" | identifier ;
+factor = unary  { ( "*" | "/" ) unary} ;
+unary = ["+" | "-"] primary ;
+primary = number | function_call | neighbor_shortcut | "(" expression ")" ;
 neighbor_shortcut = "#" identifier ;
 
 (*function*)
 function_call = identifier "(" [ arg_list ] ")" ;
-arg_list = expression { "," expression } ;
+arg_list = identifier { "," identifier } ;
 
 (*numbers / identifiers*)
-number = ["+" | "-"] digit { digit } ["." digit { digit }];
+number = float | integer ;
+float = digit { digit } "." digit { digit } ;
+integer = digit { digit } ;
 identifier = letter { letter | digit | "_" } ;
 letter = "a" | ... | "z" | "A" | ... | "Z" ;
 digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
