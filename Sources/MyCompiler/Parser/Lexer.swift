@@ -1,3 +1,7 @@
+// ====================================================================================
+// Inspired by "Crafting Interpreters" by Robert Nystrom (Chapter 4: Scanning)
+// Original source: https://craftinginterpreters.com/scanning.html
+// ====================================================================================
 public struct Lexer{
     /// The source String being used
     public let source: String
@@ -75,7 +79,7 @@ public struct Lexer{
                     }
             }
         }
-        addToken(TokenType.eof)
+        tokens.append(Token(type: TokenType.eof, lexeme: "", line: line))
         return tokens
     }
 

@@ -1,3 +1,7 @@
+// ====================================================================================
+// Inspired by "Crafting Interpreters" by Robert Nystrom (Chapter 6: Parsing Expressions)
+// Original source: https://craftinginterpreters.com/parsing-expressions.html
+// ====================================================================================
 struct Parser {
     // The inut tokens
     var tokens: [Token]
@@ -57,6 +61,7 @@ struct Parser {
 
         while !isAtEnd() && tokens[current].type == TokenType.comma {
             _ = try consume(TokenType.comma, "")
+            if tokens[current].type == TokenType.rightBracket { break }
             let state: String = try consume(TokenType.identifier, "Expected state identifier after ','.").lexeme
             states.append(state)
         }
