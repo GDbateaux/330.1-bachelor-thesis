@@ -1,23 +1,23 @@
-struct Automaton {
+struct Automaton: Equatable {
     let name: String
     let world: World
     let rules: [Rule]
 }
 
-struct World {
+struct World: Equatable {
     let states: [String]
     let neighborhood: Neighborhood
     let dimension: Int
 }
 
-struct Rule {
+struct Rule: Equatable {
     let initialState: String
     let endState: String
     let condition: Expression?
     let probability: Double
 }
 
-struct Neighborhood {
+struct Neighborhood: Equatable {
     let type: NeighborhoodType
     let range: Int
 }
@@ -27,7 +27,7 @@ enum NeighborhoodType {
     case VonNeumann
 }
 
-indirect enum Expression {
+indirect enum Expression: Equatable {
     case binary(Expression, BinaryOperator, Expression)
     case unary(UnaryOperator, Expression)
     case number(Double)
