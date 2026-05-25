@@ -1,4 +1,4 @@
-public struct Token: Sendable {
+public struct Token: Sendable, Equatable {
     public let type: TokenType
     public let lexeme: String
     public let line: Int
