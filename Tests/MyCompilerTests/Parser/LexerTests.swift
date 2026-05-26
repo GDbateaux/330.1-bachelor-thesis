@@ -2,14 +2,12 @@ import Testing
 @testable import MyCompiler
 
 @Test func testKeywords() throws {
-    let input: String = "automaton world states neighborhood Moore VonNeumann dimension rules when with prob or and"
+    let input: String = "automaton world states neighborhood dimension rules when with prob or and"
     let expected: [Token] = [
         Token(type: .automaton, lexeme: "automaton", line: 1),
         Token(type: .world, lexeme: "world", line: 1),
         Token(type: .states, lexeme: "states", line: 1),
         Token(type: .neighborhood, lexeme: "neighborhood", line: 1),
-        Token(type: .Moore, lexeme: "Moore", line: 1),
-        Token(type: .VonNeumann, lexeme: "VonNeumann", line: 1),
         Token(type: .dimension, lexeme: "dimension", line: 1),
         Token(type: .rules, lexeme: "rules", line: 1),
         Token(type: .when, lexeme: "when", line: 1),
@@ -47,11 +45,11 @@ import Testing
 }
 
 @Test func testIdentifiers() throws {
-    let input: String = "Dead Alive Moore2 Test_4"
+    let input: String = "Dead Alive Moore Test_4"
     let expected: [Token] = [
         Token(type: .identifier, lexeme: "Dead", line: 1),
         Token(type: .identifier, lexeme: "Alive", line: 1),
-        Token(type: .identifier, lexeme: "Moore2", line: 1),
+        Token(type: .identifier, lexeme: "Moore", line: 1),
         Token(type: .identifier, lexeme: "Test_4", line: 1),
         Token(type: .eof, lexeme: "", line: 1)
     ]

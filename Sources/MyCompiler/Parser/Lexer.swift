@@ -198,8 +198,6 @@ public struct Lexer{
             case "world": TokenType.world
             case "states": TokenType.states
             case "neighborhood": TokenType.neighborhood
-            case "Moore": TokenType.Moore
-            case "VonNeumann": TokenType.VonNeumann
             case "dimension": TokenType.dimension
             case "rules": TokenType.rules
             case "when": TokenType.when
