@@ -36,7 +36,7 @@ import Testing
         name: "ForestFire",
         world: World(
             states: ["Fire", "Tree", "Empty", "Ash"],
-            neighborhood: Neighborhood(type: NeighborhoodType.VonNeumann, range: 1),
+            neighborhood: Neighborhood(type: "VonNeumann", range: 1),
             dimension: 2
         ),
         rules: [
@@ -117,7 +117,7 @@ import Testing
         name: "Wireworld",
         world: World(
             states: ["Empty", "ElectronHead", "ElectronTail", "Conductor"],
-            neighborhood: Neighborhood(type: NeighborhoodType.Moore, range: 1),
+            neighborhood: Neighborhood(type: "Moore", range: 1),
             dimension: 2
         ),
         rules: [
@@ -203,21 +203,6 @@ import Testing
     #expect(throws: CompilerError.ParserError(message: "Expected an integer for neighborhood range.",
         token: Token(type: .float, lexeme: "1.5", line: 2))) {
         try parser3.parseAutomaton()
-    }
-
-    // Unknown neighborhood
-    let unknownNeighborhood: String = """
-    automaton Test {
-        world { neighborhood: Custom(1) }
-        rules {}
-    }
-    """
-    var lexer4: Lexer = Lexer(unknownNeighborhood)
-    var parser4: Parser = Parser(tokens: try lexer4.scanTokens())
-    
-    #expect(throws: CompilerError.ParserError(message: "Unknown neighborhood type 'Custom'. Expected 'Moore' or 'VonNeumann'.",
-        token: Token(type: .identifier, lexeme: "Custom", line: 2))) {
-        try parser4.parseAutomaton()
     }
 
     // Missing comparison after first rule

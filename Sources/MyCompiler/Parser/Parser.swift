@@ -34,7 +34,7 @@ struct Parser {
         _ = try consume(TokenType.leftBracket, "Expected '{' to start the world block.")
         
         var states: [String] = []
-        var neighborhood: Neighborhood = Neighborhood(type: NeighborhoodType.Moore, range: 1)
+        var neighborhood: Neighborhood = Neighborhood(type: "Moore", range: 1)
         var dimension:Int = 2
 
         while !isAtEnd() && tokens[current].type != TokenType.rightBracket {
@@ -74,15 +74,7 @@ struct Parser {
         _ = try consume(TokenType.neighborhood, "Expected keyword 'neighborhood'.")
         _ = try consume(TokenType.colon, "Expected ':' after 'neighborhood'.")
 
-        let neighborhoodType: NeighborhoodType = switch tokens[current].type {
-            case TokenType.Moore: NeighborhoodType.Moore
-            case TokenType.VonNeumann: NeighborhoodType.VonNeumann
-            default: throw CompilerError.ParserError(
-                message: "Unknown neighborhood type '\(tokens[current].lexeme)'. Expected 'Moore' or 'VonNeumann'.", 
-                token: tokens[current]
-            )        
-        }
-        _ = advance()
+        let neighborhoodType: String = try consume(TokenType.identifier, "Expected 'identifier' after 'neighborhood:'.").lexeme
         _ = try consume(TokenType.leftParenthesis, "Expected '(' before neighborhood range.")
         
         let rangeToken: Token = try consume(TokenType.integer, "Expected an integer for neighborhood range.")
