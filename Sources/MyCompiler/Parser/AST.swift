@@ -18,13 +18,8 @@ struct Rule: Equatable {
 }
 
 struct Neighborhood: Equatable {
-    let type: NeighborhoodType
+    let type: String
     let range: Int
-}
-
-enum NeighborhoodType {
-    case Moore
-    case VonNeumann
 }
 
 indirect enum Expression: Equatable {

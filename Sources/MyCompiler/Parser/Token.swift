@@ -10,8 +10,6 @@ public enum TokenType: Sendable {
     case world
     case states
     case neighborhood
-    case Moore
-    case VonNeumann
     case dimension
     case rules
     case when
