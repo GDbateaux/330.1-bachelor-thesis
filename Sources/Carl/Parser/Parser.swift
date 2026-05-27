@@ -42,7 +42,7 @@ struct Parser {
                 case TokenType.states: states = try parseStates()
                 case TokenType.neighborhood: neighborhood = try parseNeighborhood()
                 case TokenType.dimension: dimension = try parseDimension()
-                default: throw CompilerError.ParserError(message: "Expected 'states', 'neighborhood', 'dimension', or '}'; got \(tokens[current].lexeme).", token: tokens[current])
+                default: throw CompilerError.parserError(message: "Expected 'states', 'neighborhood', 'dimension', or '}'; got \(tokens[current].lexeme).", token: tokens[current])
             }
         }
         
@@ -79,7 +79,7 @@ struct Parser {
         
         let rangeToken: Token = try consume(TokenType.integer, "Expected an integer for neighborhood range.")
         guard let range: Int = Int(rangeToken.lexeme) else {
-            throw CompilerError.ParserError(
+            throw CompilerError.parserError(
                 message: "Neighborhood range must be a valid integer.", 
                 token: rangeToken
             )  
@@ -95,7 +95,7 @@ struct Parser {
         
         let dimensionToken: Token = try consume(TokenType.integer, "Expected an integer for dimension.")
         guard let dimension: Int = Int(dimensionToken.lexeme) else {
-            throw CompilerError.ParserError(
+            throw CompilerError.parserError(
                 message: "Dimension must be a valid integer.", 
                 token: dimensionToken
             )  
@@ -238,7 +238,7 @@ struct Parser {
         if match(TokenType.float, TokenType.integer) {
             let lastToken: Token = tokens[current-1]
             guard let number: Double = Double(lastToken.lexeme) else {
-                throw CompilerError.ParserError(
+                throw CompilerError.parserError(
                     message: "Invalid number", 
                     token: lastToken
                 )  
@@ -272,7 +272,7 @@ struct Parser {
             return Expression.call(functionName, parameters)
         }
 
-        throw CompilerError.ParserError(
+        throw CompilerError.parserError(
             message: "Expected a number, a '#' shortcut, a function call, or '('; got '\(tokens[current].lexeme)'.",
             token: tokens[current]
         )
@@ -284,7 +284,7 @@ struct Parser {
 
         if match(TokenType.integer, TokenType.float) {
             guard let probability: Double = Double(token.lexeme) else {
-                throw CompilerError.ParserError(
+                throw CompilerError.parserError(
                     message: "Probability must be a valid number (integer or float).", 
                     token: token
                 )  
@@ -292,7 +292,7 @@ struct Parser {
             return probability
         }
 
-        throw CompilerError.ParserError(
+        throw CompilerError.parserError(
             message: "Expected a number (integer or float) for probability.", 
             token: token
         )
@@ -330,10 +330,10 @@ struct Parser {
     ///   - tokenType: The expected token type to be consumed.
     ///   - message: The error description to be thrown if the validation fails.
     /// - Returns: The validated and consumed 'Token'.
-    /// - Throws: 'CompilerError.ParserError' if the current token type does not match.
+    /// - Throws: 'CompilerError.parserError' if the current token type does not match.
     private mutating func consume(_ tokenType: TokenType, _ message: String) throws -> Token {
         if !check(tokenType) {
-            throw CompilerError.ParserError(message: message, token: tokens[current])
+            throw CompilerError.parserError(message: message, token: tokens[current])
         }
         return advance()
     }

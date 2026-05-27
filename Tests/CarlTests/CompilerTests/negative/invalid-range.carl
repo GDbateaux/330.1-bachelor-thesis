@@ -1,0 +1,4 @@
+automaton Test {
+    world { neighborhood: Moore(1.5) }
+    rules {}
+}

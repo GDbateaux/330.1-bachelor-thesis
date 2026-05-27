@@ -49,12 +49,12 @@ public struct Lexer{
 
                 case "=":
                     guard match("=") else {
-                        throw CompilerError.LexerError(message: "Unexpected '=' (only '==' is allowed)", line: line)
+                        throw CompilerError.lexerError(message: "Unexpected '=' (only '==' is allowed)", line: line)
                     }
                     addToken(TokenType.equalEqual)
                 case "!":
                     guard match("=") else {
-                        throw CompilerError.LexerError(message: "Unexpected '!' (only '!=' is allowed)", line: line)
+                        throw CompilerError.lexerError(message: "Unexpected '!' (only '!=' is allowed)", line: line)
                     }
                     addToken(TokenType.notEqual)
                 case "-": 
@@ -63,11 +63,13 @@ public struct Lexer{
                     match("=") ? addToken(TokenType.lessEqual) : addToken(TokenType.less)
                 case ">":
                     match("=") ? addToken(TokenType.greaterEqual) : addToken(TokenType.greater)
-                
-                case "\n": line += 1
-                case " ", "\t", "\r": break
-
                 default: 
+                    if c.isWhitespace {
+                        if c.isNewline {
+                            line += 1
+                        }
+                        break
+                    }
                     if isDigit(c) {
                         takeNumber()
                     }
@@ -75,7 +77,7 @@ public struct Lexer{
                         takeIdentifier()
                     }
                     else {
-                        throw CompilerError.LexerError(message: "Unexpected character '\(c)'", line: line)
+                        throw CompilerError.lexerError(message: "Unexpected character '\(c)'", line: line)
                     }
             }
         }

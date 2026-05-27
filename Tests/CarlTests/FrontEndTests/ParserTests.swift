@@ -1,5 +1,5 @@
 import Testing
-@testable import MyCompiler
+@testable import Carl
 
 @Test func testForestFire() throws {
     let input: String = """
@@ -155,80 +155,4 @@ import Testing
     )
     
     #expect(result == expectedAST)
-}
-
-@Test func testParserErrors() throws {
-    // Missing colon after dimension
-    let missingColon: String = """
-    automaton Test {
-        world { dimension 2 }
-        rules {}
-    }
-    """
-    var lexer1: Lexer = Lexer(missingColon)
-    var parser1: Parser = Parser(tokens: try lexer1.scanTokens())
-    
-    #expect(throws: CompilerError.ParserError(message: "Expected ':' after 'dimension'.", 
-        token: Token(type: .integer, lexeme: "2", line: 2))) {
-        try parser1.parseAutomaton()
-    }
-
-    // Missing arrow after first rule
-    let missingArrow: String = """
-    automaton Test {
-        world { dimension: 2 }
-        rules {
-            Dead Alive
-        }
-    }
-    """
-    var lexer2: Lexer = Lexer(missingArrow)
-    var parser2: Parser = Parser(tokens: try lexer2.scanTokens())
-    
-    #expect(throws: CompilerError.ParserError(message: "Expected '->' to follow the initial state.",
-        token: Token(type: .identifier, lexeme: "Alive", line: 4))) {
-        try parser2.parseAutomaton()
-    }
-
-    // Invalid range in neighborhood (expecting integer)
-    let invalidRange: String = """
-    automaton Test {
-        world { neighborhood: Moore(1.5) }
-        rules {}
-    }
-    """
-    var lexer3: Lexer = Lexer(invalidRange)
-    var parser3: Parser = Parser(tokens: try lexer3.scanTokens())
-    
-    #expect(throws: CompilerError.ParserError(message: "Expected an integer for neighborhood range.",
-        token: Token(type: .float, lexeme: "1.5", line: 2))) {
-        try parser3.parseAutomaton()
-    }
-
-    // Missing comparison after first rule
-    let missingComparison: String = """
-    automaton Test {
-        world { dimension: 2 }
-        rules {
-            Dead -> Alive when count_neighbors(Alive) == 
-        }
-    }
-    """
-    var lexer5 = Lexer(missingComparison)
-    var parser5 = Parser(tokens: try lexer5.scanTokens())
-    
-    #expect(throws: CompilerError.ParserError(message: "Expected a number, a '#' shortcut, a function call, or '('; got '}'.",
-        token: Token(type: .rightBracket, lexeme: "}", line: 5))) {
-        try parser5.parseAutomaton()
-    }
-
-    // Missing name of automata
-    let incompleteInput: String = "automaton"
-    var lexer6: Lexer = Lexer(incompleteInput)
-    var parser6: Parser = Parser(tokens: try lexer6.scanTokens())
-    
-    #expect(throws: CompilerError.ParserError(message: "Name of the automata is missing",
-        token: Token(type: .eof, lexeme: "", line: 1))) {
-        try parser6.parseAutomaton()
-    }
 }

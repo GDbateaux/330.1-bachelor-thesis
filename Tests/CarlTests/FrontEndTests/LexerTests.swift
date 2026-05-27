@@ -1,5 +1,5 @@
 import Testing
-@testable import MyCompiler
+@testable import Carl
 
 @Test func testKeywords() throws {
     let input: String = "automaton world states neighborhood dimension rules when with prob or and"
@@ -130,19 +130,19 @@ import Testing
     }
 }
 
-@Test func testLexerErrors() {
+@Test func testlexerErrors() {
     var lexerSingleEqual: Lexer = Lexer("states = 4")
-    #expect(throws: CompilerError.LexerError(message: "Unexpected \'=\' (only \'==\' is allowed)", line: 1)) {
+    #expect(throws: CompilerError.lexerError(message: "Unexpected \'=\' (only \'==\' is allowed)", line: 1)) {
         try lexerSingleEqual.scanTokens()
     }
 
     var lexerUnexpectedChar: Lexer = Lexer("$")
-    #expect(throws: CompilerError.LexerError(message: "Unexpected character '$'", line: 1)) {
+    #expect(throws: CompilerError.lexerError(message: "Unexpected character '$'", line: 1)) {
         try lexerUnexpectedChar.scanTokens()
     }
 
     var lexerUnexpectedExclamation: Lexer = Lexer("!")
-    #expect(throws: CompilerError.LexerError(message: "Unexpected '!' (only '!=' is allowed)", line: 1)) {
+    #expect(throws: CompilerError.lexerError(message: "Unexpected '!' (only '!=' is allowed)", line: 1)) {
         try lexerUnexpectedExclamation.scanTokens()
     }
 }
