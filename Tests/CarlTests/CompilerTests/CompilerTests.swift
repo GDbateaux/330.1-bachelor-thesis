@@ -3,11 +3,16 @@ import Foundation
 @testable import Carl
 
 struct CompilerTestsRunner {
+    /// Represents the target subdirectories containing the test scenarios.
     enum FolderType: String {
         case positive = "positive"
         case negative = "negative"
     }
 
+    /// Scans the specified test directory and retrieves all files with a .carl extension.
+    ///
+    /// - Parameter folderType: The type of folder to scan.
+    /// - Returns: An array of URLs containing the .carl files.
     static func listCarlFiles(folderType: FolderType) throws -> [URL] {
         let currentFileURL: URL = URL(fileURLWithPath: #filePath)
         let testFolder: URL = currentFileURL.deletingLastPathComponent().appendingPathComponent(folderType.rawValue)
@@ -24,6 +29,9 @@ struct CompilerTestsRunner {
         return carlUrls
     }
 
+    /// Parameterized test that validates the compiler's behavior against invalid code inputs.
+    ///
+    /// - Parameter carlUrl: The URL of the .carl file being tested.
     @Test(arguments: try listCarlFiles(folderType: FolderType.negative))
     func testNegatives(carlUrl: URL) throws {
         let fileManager: FileManager = FileManager.default
@@ -41,6 +49,9 @@ struct CompilerTestsRunner {
         }
     }
 
+    /// Parameterized test that validates the compiler's behavior against valid code inputs.
+    ///
+    /// - Parameter carlUrl: The URL of the .carl file being tested.
     @Test(arguments: try listCarlFiles(folderType: FolderType.positive))
     func testPositives(carlUrl: URL) throws {
         let fileName: String = carlUrl.deletingPathExtension().lastPathComponent
