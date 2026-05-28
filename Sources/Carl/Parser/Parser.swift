@@ -42,7 +42,7 @@ struct Parser {
                 case TokenType.states: states = try parseStates()
                 case TokenType.neighborhood: neighborhood = try parseNeighborhood()
                 case TokenType.dimension: dimension = try parseDimension()
-                default: throw CompilerError.parserError(message: "Expected 'states', 'neighborhood', 'dimension', or '}'; got \(tokens[current].lexeme).", token: tokens[current])
+                default: throw CompilerError.parserError(message: "Expected 'states', 'neighborhood', 'dimension' inside world block; got '\(tokens[current].lexeme)'.", token: tokens[current])
             }
         }
         
@@ -59,10 +59,17 @@ struct Parser {
         let firstStateToken: Token = try consume(TokenType.identifier, "Expected at least one state identifier.")
         states.append(firstStateToken.lexeme)
 
-        while !isAtEnd() && tokens[current].type == TokenType.comma {
-            _ = try consume(TokenType.comma, "")
+        while !isAtEnd() && tokens[current].type != TokenType.rightBracket {
+            if tokens[current].type == TokenType.identifier {
+                throw CompilerError.parserError(
+                    message: "Expected ',' between state identifiers (got '\(tokens[current].lexeme)').", 
+                    token: tokens[current]
+                )
+            }
+            _ = try consume(TokenType.comma, "Expected ',' or '}' in states list.")
             if tokens[current].type == TokenType.rightBracket { break }
-            let state: String = try consume(TokenType.identifier, "Expected state identifier after ','.").lexeme
+            
+            let state: String = try consume(TokenType.identifier, "Expected state identifier after ','.") .lexeme
             states.append(state)
         }
         _ = try consume(TokenType.rightBracket, "Expected '}' to end the states block.")
@@ -109,10 +116,11 @@ struct Parser {
         _ = try consume(TokenType.leftBracket, "Expected '{' to start the rules block.")
         
         var rules: [Rule] = []
-        while !isAtEnd() && tokens[current].type == TokenType.identifier {
-            let initialState: String = try consume(TokenType.identifier, "").lexeme
+
+        while !isAtEnd() && tokens[current].type != TokenType.rightBracket {
+            let initialState: String = try consume(TokenType.identifier, "Expected a rule definition (e.g., 'state -> state') or '}'; got '\(tokens[current].lexeme)'.").lexeme
             _ = try consume(TokenType.rightArrow, "Expected '->' to follow the initial state.")
-            let endState: String = try consume(TokenType.identifier, "Expected end state idenntifier after '->'").lexeme
+            let endState: String = try consume(TokenType.identifier, "Expected end state identifier after '->'").lexeme
 
             var condition: Expression? = nil
             if match(TokenType.when) {
