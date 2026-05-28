@@ -6,7 +6,11 @@ struct Compiler {
     func compile() throws {
         var lexer: Lexer = Lexer(source)
         let tokens: [Token] = try lexer.scanTokens()
+
         var parser: Parser = Parser(tokens: tokens)
-        let _: Automaton = try parser.parseAutomaton()
+        let automaton: Automaton = try parser.parseAutomaton()
+
+        let semanticAnalyzer: SemanticAnalyzer = SemanticAnalyzer(AST: automaton)
+        let _ = try semanticAnalyzer.verifySemantic()
     }
 }
