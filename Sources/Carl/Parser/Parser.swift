@@ -3,7 +3,7 @@
 // Original source: https://craftinginterpreters.com/parsing-expressions.html
 // ====================================================================================
 struct Parser {
-    // The inut tokens
+    // The input tokens
     var tokens: [Token]
 
     // The current token being scanned
