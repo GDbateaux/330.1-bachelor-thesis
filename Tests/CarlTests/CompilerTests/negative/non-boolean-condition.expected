@@ -1,0 +1,1 @@
+Semantic error: The 'when' condition in rule 'Dead -> Alive' must evaluate to a boolean, but it evaluates to a number.

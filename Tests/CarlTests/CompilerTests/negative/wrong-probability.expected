@@ -1,0 +1,1 @@
+Semantic error: Probability for rule 'Dead -> Alive' must be between 0.0 and 1.0 (got 2.5).

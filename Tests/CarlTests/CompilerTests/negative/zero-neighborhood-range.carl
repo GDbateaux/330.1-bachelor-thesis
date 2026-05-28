@@ -1,0 +1,12 @@
+automaton GameOfLife {
+    world {
+        states { Dead, Alive }
+        neighborhood: Moore(0)
+        dimension: 2
+    }
+
+    rules {
+        Dead -> Alive when count_neighbors(Alive) == 3
+        Alive -> Dead when count_neighbors(Alive) < 2 or count_neighbors(Alive) > 3
+    }
+}
