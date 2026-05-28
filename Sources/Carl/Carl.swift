@@ -14,9 +14,15 @@ struct Carl {
             rules {
                 Dead -> Alive when count_neighbors(Alive) == 3
                 Alive -> Dead when count_neighbors(Alive) < 2 or count_neighbors(Alive) > 3
+            }
             
         }
         """)
-        compiler.compile()
+        do {
+            try compiler.compile()
+        }
+        catch {
+            print(error.localizedDescription)
+        }
     }
 }

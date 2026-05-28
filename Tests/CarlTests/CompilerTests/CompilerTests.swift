@@ -44,8 +44,11 @@ struct CompilerTestsRunner {
             let expectedOutput: String = try String(contentsOf: expectedUrl, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
 
             let compiler: Compiler = Compiler(source: sourceCode)
-            let observedOutput: String = compiler.compileAndCaptureError()
-            #expect(observedOutput == expectedOutput, "Failed \(fileName) test")
+
+            let error = #expect(throws: CompilerError.self) {
+                try compiler.compile()
+            }
+            #expect(error?.localizedDescription == expectedOutput, "Failed \(fileName) test")
         }
     }
 
@@ -58,7 +61,8 @@ struct CompilerTestsRunner {
 
         let sourceCode: String = try String(contentsOf: carlUrl, encoding: .utf8)
         let compiler: Compiler = Compiler(source: sourceCode)
-        let observedOutput: String = compiler.compileAndCaptureError()
-        #expect(observedOutput == "", "Failed \(fileName) test")
+        #expect(throws: Never.self, "Failed \(fileName) test") {
+            try compiler.compile()
+        }
     }
 }

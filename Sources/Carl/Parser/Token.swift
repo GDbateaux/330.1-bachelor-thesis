@@ -1,9 +1,11 @@
+/// The tokens produced by the lexer, representing a specific type of element.
 public struct Token: Sendable, Equatable {
     public let type: TokenType
     public let lexeme: String
     public let line: Int
 }
 
+/// An enumeration defining all valid categories of tokens.
 public enum TokenType: Sendable {
     // keywords
     case automaton

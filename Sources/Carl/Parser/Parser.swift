@@ -316,8 +316,7 @@ struct Parser {
                 _ = advance()
                 return true
             }
-        }
-        
+        } 
         return false
     }
 
@@ -326,10 +325,7 @@ struct Parser {
     /// - Parameter tokenType: The token type to look for.
     /// - Returns: 'true' if the current token matches the given type; otherwise, 'false'.
     private func check(_ tokenType: TokenType) -> Bool {
-        if (isAtEnd() || tokenType != tokens[current].type) {
-            return false
-        }
-        return true
+        !isAtEnd() && tokenType == tokens[current].type
     }
 
     /// Enforces that the current token is of the expected type, consuming it, or throws a syntax error.
