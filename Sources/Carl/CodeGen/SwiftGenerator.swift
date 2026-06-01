@@ -1,21 +1,31 @@
 struct SwiftGenerator {
+    /// Name of the automaton
     private let name: String
 
+    /// List of states
     private let states: [String]
 
+    /// Neighborhood type (Moore or VonNeumann)
     private let neighborhoodType: String
 
+    /// Neighborhood range
     private let neighborhoodRange: Int
 
+    /// Space dimension
     private let dimension: Int
 
+    /// List of rules for the automaton
     private let rules: [Rule]
 
+    /// Dictionary mapping string state to int
     private var stateMapping: [String: Int]
 
-    private var textResult: String = ""
+    /// String result of the code generation
+    private var generatedCode: String = ""
 
-
+    /// Initializes a new SwiftGenerator with the specified AST.
+    ///
+    /// - Parameter AST: The source AST to be transformed to code.
     init(_ AST: Automaton) {
         self.name = AST.name
 
@@ -30,29 +40,33 @@ struct SwiftGenerator {
         stateMapping = Dictionary(uniqueKeysWithValues: zip(self.states, 0..<self.states.count))
     }
 
+    /// Generate the final String containing the swift code
+    /// 
+    /// - Returns: A string containing the swift code
     mutating func generate() -> String {
-        textResult += "struct Simulation {\n"
-        textResult += "    var grid: NDGrid\n"
-        textResult += "    var history: [NDGrid] = []\n\n"
-        textResult += "    init(dimensions: [Int]) {\n"
-        textResult += "        self.grid = NDGrid(dimensions: dimensions, initialValue: 0, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange))\n"
-        textResult += "    }\n\n"
+        generatedCode += "struct Simulation {\n"
+        generatedCode += "    var grid: NDGrid\n"
+        generatedCode += "    var history: [NDGrid] = []\n\n"
+        generatedCode += "    init(dimensions: [Int]) {\n"
+        generatedCode += "        self.grid = NDGrid(dimensions: dimensions, initialValue: 0, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange))\n"
+        generatedCode += "    }\n\n"
 
-        generateRule()
+        generateRules()
         generateStep()
         generateSimulate()
         generateDisplay()
 
-        textResult += "}\n\n"
+        generatedCode += "}\n\n"
 
         generateNDGrid()
         generateMain()
-        return textResult
+        return generatedCode
     }
 
-    mutating func generateRule() {
-        textResult += "    func nextCell(grid: NDGrid, idx: Int) -> Int {\n"
-        textResult += "        let currentState: Int = grid.cells[idx]\n"
+    /// Generates the function responsible for computing the next state of a cell according to the automaton rules
+    private mutating func generateRules() {
+        generatedCode += "    func nextCell(grid: NDGrid, idx: Int) -> Int {\n"
+        generatedCode += "        let currentState: Int = grid.cells[idx]\n"
 
         for rule: Rule in self.rules {
             guard let from: Int = stateMapping[rule.initialState] else {
@@ -62,49 +76,54 @@ struct SwiftGenerator {
                 continue
             }
 
-            textResult += "        if currentState == \(from)"
+            generatedCode += "        if currentState == \(from)"
 
             if let expr: Expression = rule.condition {
-                textResult += " && \(generateExpr(expr))"                
+                generatedCode += " && \(generateExpr(expr))"                
             }
             
             if rule.probability < 1 {
-                textResult += " && Double.random(in: 0...1) <= \(rule.probability)" 
+                generatedCode += " && Double.random(in: 0...1) <= \(rule.probability)" 
             }
-            textResult += " {\n"
-            textResult += "            return \(to)\n"
-            textResult += "        }\n"
+            generatedCode += " {\n"
+            generatedCode += "            return \(to)\n"
+            generatedCode += "        }\n"
         }
-        textResult += "        return currentState\n"
-        textResult += "    }\n\n"
+        generatedCode += "        return currentState\n"
+        generatedCode += "    }\n\n"
     }
 
-    func generateExpr(_ expr: Expression) -> String {
-        var res: String = ""
+    /// Generate the expression code
+    /// 
+    /// - Parameter expr: The expression to be converted
+    /// - Returns: The swift code of the expression
+    private func generateExpr(_ expr: Expression) -> String {
+        var generatedExpr: String = ""
         
         switch expr {
             case Expression.binary(let left, let op, let right):
-                res += "(\(generateExpr(left)) \(op.rawValue) \(generateExpr(right)))"
+                generatedExpr += "(\(generateExpr(left)) \(op.rawValue) \(generateExpr(right)))"
             case Expression.number(let number):
-                res += String(number)
+                generatedExpr += String(number)
             case Expression.unary(let op, let right):
-                res += op.rawValue + " " + generateExpr(right)
+                generatedExpr += op.rawValue + " " + generateExpr(right)
             case Expression.neighborShortcut(let state):
                 if let stateNum = stateMapping[state] {
-                    res += "Double(grid.countNeighbors(idx: idx, stateType: \(stateNum)))"
+                    generatedExpr += "Double(grid.countNeighbors(idx: idx, stateType: \(stateNum)))"
                 }
             case Expression.call(let functionName, let arguments):
                 if functionName == "count_neighbors" && arguments.count == 1 {
                     if let stateNum = stateMapping[arguments[0]] {
-                        res += "Double(grid.countNeighbors(idx: idx, stateType: \(stateNum)))"
+                        generatedExpr += "Double(grid.countNeighbors(idx: idx, stateType: \(stateNum)))"
                     }
                 }
         }
-        return res
+        return generatedExpr
     }
 
-    mutating func generateStep() {
-        textResult += """
+    /// Generate the step function, which updates the grid
+    private mutating func generateStep() {
+        generatedCode += """
                 mutating func step() {
                     let previousGridState: NDGrid = self.grid
 
@@ -116,8 +135,9 @@ struct SwiftGenerator {
             """
     }
 
-    mutating func generateSimulate() {
-        textResult += """
+    /// Generate the simulate function, which runs the automaton for a number of iteration
+    private mutating func generateSimulate() {
+        generatedCode += """
             mutating func simulate() {
                 for i: Int in 0..<100 {
                     print("step \\(i)")
@@ -129,8 +149,9 @@ struct SwiftGenerator {
         """
     }
 
-    mutating func generateDisplay() {
-        textResult += """
+    /// Generate the displayGrid function that prints the grid state
+    private mutating func generateDisplay() {
+        generatedCode += """
             func displayGrid() {
                 if grid.dimensions.count == 2 {
                     let width: Int = grid.dimensions[grid.dimensions.count - 1]
@@ -154,8 +175,9 @@ struct SwiftGenerator {
 
     // # Adapted from Stack Overflow, response by @vacawama, accessed on 29.05.2026
     // # URL: https://stackoverflow.com/a/51448698
-    mutating func generateNDGrid() {
-        textResult += """
+    /// Generate the NGrid struct used to represent an N-dimensional grid.
+    private mutating func generateNDGrid() {
+        generatedCode += """
         struct NDGrid {
             let dimensions: [Int]
             var cells: [Int]
@@ -205,19 +227,19 @@ struct SwiftGenerator {
             private func getMooreNeighbors(_ idx: Int) ->[Int] {
                 let centerCoords: [Int] = coordinates(linearIndex: idx)
                 var result: [Int] = []
-                var actualneighbor: [Int] = centerCoords
+                var actualNeighbor: [Int] = centerCoords
 
                 func rec(_ dim: Int) {
                     if dim == dimensions.count {
-                        if actualneighbor != centerCoords{
-                            result.append(index(actualneighbor))
+                        if actualNeighbor != centerCoords{
+                            result.append(index(actualNeighbor))
                         }
                         return
                     }
 
                     for i: Int in -range...range {
                         if centerCoords[dim] + i >= 0 && centerCoords[dim] + i < dimensions[dim] {
-                            actualneighbor[dim] = centerCoords[dim] + i
+                            actualNeighbor[dim] = centerCoords[dim] + i
                             rec(dim + 1)
                         }
                     }
@@ -229,19 +251,19 @@ struct SwiftGenerator {
             private func getVonNeumannNeighbors(_ idx: Int) ->[Int] {
                 let centerCoords: [Int] = coordinates(linearIndex: idx)
                 var result: [Int] = []
-                var actualneighbor: [Int] = centerCoords
+                var actualNeighbor: [Int] = centerCoords
 
                 func rec(_ dim: Int) {
                     if dim == dimensions.count {
-                        if actualneighbor != centerCoords {
+                        if actualNeighbor != centerCoords {
                             var distance: Int = 0
 
                             for i: Int in 0..<centerCoords.count {
-                                distance += abs(centerCoords[i] - actualneighbor[i])
+                                distance += abs(centerCoords[i] - actualNeighbor[i])
                             }
 
                             if distance <= range {
-                                result.append(index(actualneighbor))
+                                result.append(index(actualNeighbor))
                             }
                         }
                         return
@@ -249,7 +271,7 @@ struct SwiftGenerator {
 
                     for i: Int in -range...range {
                         if centerCoords[dim] + i >= 0 && centerCoords[dim] + i < dimensions[dim] {
-                            actualneighbor[dim] = centerCoords[dim] + i
+                            actualNeighbor[dim] = centerCoords[dim] + i
                             rec(dim + 1)
                         }
                     }
@@ -288,8 +310,9 @@ struct SwiftGenerator {
         """
     }
     
-    mutating func generateMain() {
-        textResult += """
+    /// Generates the entry point of the program
+    private mutating func generateMain() {
+        generatedCode += """
         print("--- Start of \(name) simulation---")
         
         let dims: [Int] = \(Array(repeating: 20, count: dimension))
