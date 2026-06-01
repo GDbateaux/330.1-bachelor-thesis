@@ -36,23 +36,23 @@ indirect enum Expression: Equatable {
 }
 
 /// A prefix operator applied to a single expression.
-enum UnaryOperator {
-    case minus
-    case plus
+enum UnaryOperator: String {
+    case minus = "-"
+    case plus = "+"
 }
 
 /// An operator used to combine two expressions.
-enum BinaryOperator {
-    case or
-    case and
-    case minus
-    case plus
-    case times
-    case divided
-    case equalEqual
-    case notEqual
-    case less
-    case lessEqual
-    case greater
-    case greaterEqual
+enum BinaryOperator: String {
+    case or = "||"
+    case and = "&&"
+    case minus = "-"
+    case plus = "+"
+    case times = "*"
+    case divided = "/"
+    case equalEqual = "=="
+    case notEqual = "!="
+    case less = "<"
+    case lessEqual = "<="
+    case greater = ">"
+    case greaterEqual = ">="
 }

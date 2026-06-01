@@ -3,7 +3,7 @@ struct Compiler {
     let source: String
 
     /// Entry point to compile the source code
-    func compile() throws {
+    func compile() throws -> String {
         var lexer: Lexer = Lexer(source)
         let tokens: [Token] = try lexer.scanTokens()
 
@@ -11,6 +11,9 @@ struct Compiler {
         let automaton: Automaton = try parser.parseAutomaton()
 
         let semanticAnalyzer: SemanticAnalyzer = SemanticAnalyzer(AST: automaton)
-        let _ = try semanticAnalyzer.verifySemantic()
+        try semanticAnalyzer.verifySemantic()
+
+        var swiftGenerator: SwiftGenerator = SwiftGenerator(automaton)
+        return swiftGenerator.generate()
     }
 }
