@@ -1,1 +1,1 @@
-Parser error: Expected a number, a '#' shortcut, a function call, or '('; got '}'.
+Parser error: Expected an integer number, a '#' shortcut, a function call, or '('; got '}'.

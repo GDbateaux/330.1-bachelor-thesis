@@ -109,12 +109,12 @@ struct SwiftGenerator {
                 generatedExpr += op.rawValue + " " + generateExpr(right)
             case Expression.neighborShortcut(let state):
                 if let stateNum = stateMapping[state] {
-                    generatedExpr += "Double(grid.countNeighbors(idx: idx, stateType: \(stateNum)))"
+                    generatedExpr += "grid.countNeighbors(idx: idx, stateType: \(stateNum))"
                 }
             case Expression.call(let functionName, let arguments):
                 if functionName == "count_neighbors" && arguments.count == 1 {
                     if let stateNum = stateMapping[arguments[0]] {
-                        generatedExpr += "Double(grid.countNeighbors(idx: idx, stateType: \(stateNum)))"
+                        generatedExpr += "grid.countNeighbors(idx: idx, stateType: \(stateNum))"
                     }
                 }
         }

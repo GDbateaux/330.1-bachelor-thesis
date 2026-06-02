@@ -30,7 +30,7 @@ struct Neighborhood: Equatable {
 indirect enum Expression: Equatable {
     case binary(Expression, BinaryOperator, Expression)
     case unary(UnaryOperator, Expression)
-    case number(Double)
+    case number(Int)
     case call(String, [String])
     case neighborShortcut(String)
 }

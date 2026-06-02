@@ -166,7 +166,7 @@ comparison = term [ ( "<" | "<=" | ">" | ">=" ) term] ;
 term = factor { ( "-" | "+" ) factor } ;
 factor = unary  { ( "*" | "/" ) unary} ;
 unary = ["+" | "-"] primary ;
-primary = number | function_call | neighbor_shortcut | "(" expression ")" ;
+primary = integer | function_call | neighbor_shortcut | "(" expression ")" ;
 neighbor_shortcut = "#" identifier ;
 
 (*function*)
