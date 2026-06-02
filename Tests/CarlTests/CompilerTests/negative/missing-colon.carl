@@ -1,0 +1,4 @@
+automaton Test {
+    world { dimension 2 }
+    rules {}
+}
