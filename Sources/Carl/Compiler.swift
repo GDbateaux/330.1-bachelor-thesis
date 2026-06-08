@@ -14,6 +14,6 @@ struct Compiler {
         try semanticAnalyzer.verifySemantic()
 
         var swiftGenerator: SwiftGenerator = SwiftGenerator(automaton)
-        return swiftGenerator.generate()
+        return try swiftGenerator.generate()
     }
 }

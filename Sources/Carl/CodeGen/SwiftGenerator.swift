@@ -1,3 +1,5 @@
+import Foundation
+
 struct SwiftGenerator {
     /// Name of the automaton
     private let name: String
@@ -43,12 +45,16 @@ struct SwiftGenerator {
     /// Generate the final String containing the swift code
     /// 
     /// - Returns: A string containing the swift code
-    mutating func generate() -> String {
+    mutating func generate() throws -> String {
+        
+
         generatedCode += "struct Simulation {\n"
         generatedCode += "    var grid: NDGrid\n"
-        generatedCode += "    var history: [NDGrid] = []\n\n"
+        generatedCode += "    var history: [NDGrid] = []\n"
+        generatedCode += "    var lookupNextState: [UInt64:Int]?\n\n"
         generatedCode += "    init(dimensions: [Int]) {\n"
-        generatedCode += "        self.grid = NDGrid(dimensions: dimensions, initialValue: 0, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange))\n"
+        generatedCode += "        self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))\n"
+        generatedCode += "        self.lookupNextState = buildLookupNextCell()\n"
         generatedCode += "    }\n\n"
 
         generateRules()
@@ -58,15 +64,60 @@ struct SwiftGenerator {
 
         generatedCode += "}\n\n"
 
-        generateNDGrid()
+        try generateNDGrid()
         generateMain()
         return generatedCode
     }
 
     /// Generates the function responsible for computing the next state of a cell according to the automaton rules
     private mutating func generateRules() {
-        generatedCode += "    func nextCell(grid: NDGrid, idx: Int) -> Int {\n"
-        generatedCode += "        let currentState: Int = grid.cells[idx]\n"
+        generateBuildLookupNextCell()
+        generateEvaluateNextState()
+        generateNextCell()
+        generateGetLookupKey()
+    }
+
+    private mutating func generateBuildLookupNextCell() {
+        generatedCode += """
+            private func buildLookupNextCell() -> [UInt64: Int]? {
+                let keyElementsCount: Int = self.grid.numNeighbors + 1
+                let stateCount: Int = 2
+                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
+                
+                let totalCombinations: Int = Int(pow(Double(stateCount), Double(keyElementsCount)))
+                let numTotalBits: Int = bitsPerState * (keyElementsCount)
+
+                if totalCombinations > 1000000 || numTotalBits > 64 {
+                    return nil
+                }
+
+                var lookupNextState: [UInt64: Int] = [:]
+
+                func rec(currentKey: UInt64, currentIndex: Int, pattern: [Int]) {
+                    if currentIndex == keyElementsCount - 1 {
+                        for state: Int in 0..<stateCount {
+                            let nextPattern: [Int] = pattern + [state]
+                            lookupNextState[currentKey | UInt64(state)] = evaluateNextState(pattern: nextPattern)
+                        }
+                        return
+                    }
+
+                    for state: Int in 0..<stateCount {
+                        let nextKey: UInt64 = (currentKey | UInt64(state)) << bitsPerState
+                        let nextPattern: [Int] = pattern + [state]
+                        rec(currentKey: nextKey, currentIndex: currentIndex + 1, pattern: nextPattern)
+                    }
+                }
+                rec(currentKey: 0, currentIndex: 0, pattern: [])
+                return lookupNextState
+            }\n\n
+        """
+    }
+
+    private mutating func generateEvaluateNextState() {
+        generatedCode += "    func evaluateNextState(pattern: [Int]) -> Int {\n"
+        generatedCode += "        let currentState: Int = pattern[0]\n"
+        generatedCode += "        let neighbors: [Int] = Array(pattern.dropFirst())\n\n"
 
         for rule: Rule in self.rules {
             guard let from: Int = stateMapping[rule.initialState] else {
@@ -79,7 +130,7 @@ struct SwiftGenerator {
             generatedCode += "        if currentState == \(from)"
 
             if let expr: Expression = rule.condition {
-                generatedCode += " && \(generateExpr(expr))"                
+                generatedCode += " && \(generateLookupExpr(expr))"                
             }
             
             if rule.probability < 1 {
@@ -91,6 +142,91 @@ struct SwiftGenerator {
         }
         generatedCode += "        return currentState\n"
         generatedCode += "    }\n\n"
+    }
+
+    private mutating func generateNextCell() {
+        generatedCode += """
+            func nextCell(grid: NDGrid, idx: Int) -> Int {
+                if let lookup = lookupNextState {
+                    if let key = getLookupKey(grid: grid, idx: idx) {
+                        if let nextState = lookup[key] {
+                            return nextState
+                        }
+                    }
+                }
+
+                let currentState: Int = grid.getCell(idx) ?? 0
+
+        \(rulesSwiftCode())
+                return currentState
+            }\n\n
+        """
+    }
+
+    private func rulesSwiftCode() -> String {
+        var code: String = ""
+        for rule: Rule in self.rules {
+            guard let from: Int = stateMapping[rule.initialState] else {
+                continue
+            }
+            guard let to: Int = stateMapping[rule.endState] else {
+                continue
+            }
+
+            code += "        if currentState == \(from)"
+
+            if let expr: Expression = rule.condition {
+                code += " && \(generateExpr(expr))"                
+            }
+            
+            if rule.probability < 1 {
+                code += " && Double.random(in: 0...1) <= \(rule.probability)" 
+            }
+            code += " {\n"
+            code += "            return \(to)\n"
+            code += "        }\n"
+        }
+        return code
+    }
+
+    private mutating func generateGetLookupKey() {
+        generatedCode += """
+            func getLookupKey(grid: NDGrid, idx: Int) -> UInt64? {
+                guard let currentState = grid.getCell(idx) else {
+                    return nil
+                }
+
+                let neighbors: [Int] = grid.getNeighbors(idx: idx)
+                if neighbors.count != grid.numNeighbors {
+                    return nil
+                }
+
+                let stateCount: Int = \(states.count)
+                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
+                var key: UInt64 = UInt64(currentState)
+
+                for neighbor: Int in neighbors {
+                    key = (key << bitsPerState) | UInt64(neighbor)
+                }
+                return key
+            }\n\n
+        """
+    }
+
+    private mutating func generatecomputeNeighborhoodKey() {
+        generatedCode += """
+            private func computeNeighborhoodKey(grid: NDGrid, idx: Int, currentState: Int) -> Int64 {
+                let stateCount: Int = \(states.count)
+                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
+                var neighborhoodKey: Int64 = Int64(currentState)
+                
+                for offset in grid.neighborsOffsets {
+                    let neighborState = grid.getCell(idx + offset) ?? 0
+                    neighborhoodKey = (neighborhoodKey << bitsPerState) | Int64(neighborState)
+                }
+                return neighborhoodKey
+            }\n\n
+        """
     }
 
     /// Generate the expression code
@@ -121,15 +257,43 @@ struct SwiftGenerator {
         return generatedExpr
     }
 
+    /// Generate the expression code for the lookup table evaluation
+    /// 
+    /// - Parameter expr: The expression to be converted
+    /// - Returns: The swift code of the expression
+    private func generateLookupExpr(_ expr: Expression) -> String {
+        var generatedExpr: String = ""
+        
+        switch expr {
+            case Expression.binary(let left, let op, let right):
+                generatedExpr += "(\(generateLookupExpr(left)) \(op.rawValue) \(generateLookupExpr(right)))"
+            case Expression.number(let number):
+                generatedExpr += String(number)
+            case Expression.unary(let op, let right):
+                generatedExpr += op.rawValue + " " + generateLookupExpr(right)
+            case Expression.neighborShortcut(let state):
+                if let stateNum = stateMapping[state] {
+                    generatedExpr += "neighbors.filter({ $0 == \(stateNum) }).count"
+                }
+            case Expression.call(let functionName, let arguments):
+                if functionName == "count_neighbors" && arguments.count == 1 {
+                    if let stateNum = stateMapping[arguments[0]] {
+                        generatedExpr += "neighbors.filter({ $0 == \(stateNum) }).count"
+                    }
+                }
+        }
+        return generatedExpr
+    }
+
     /// Generate the step function, which updates the grid
     private mutating func generateStep() {
         generatedCode += """
                 mutating func step() {
                     let previousGridState: NDGrid = self.grid
 
-                    for i: Int in 0..<grid.cells.count {
+                    for i: Int in 0..<grid.totalCellsCount {
                         let newState: Int = nextCell(grid: previousGridState, idx: i)
-                        self.grid.cells[i] = newState
+                        self.grid.setCell(idx: i, stateNum: newState)
                     }
                 }\n\n
             """
@@ -157,157 +321,33 @@ struct SwiftGenerator {
                     let width: Int = grid.dimensions[grid.dimensions.count - 1]
                     var line: String = ""
 
-                    for i: Int in 0..<grid.cells.count {
+                    for i: Int in 0..<grid.totalCellsCount {
                         if i % width == 0 {
                             print(line)
                             line = ""
                         }
-                        line += "\\(grid.cells[i]) "
+                        line += "\\(grid.getCell(i) ?? 0)"
                     }
                     print(line)
                     print(String(repeating: "-", count: width * 2))
                 } else {
-                    print("Grid data : \\(grid.cells)")
+                    var allCells: [Int] = []
+                    for i: Int in 0..<grid.totalCellsCount {
+                        allCells.append(grid.getCell(i) ?? 0)
+                    }
+                    print("Grid data (linearised): \\(allCells)")
                 }
             }\n\n
         """
     }
 
-    // # Adapted from Stack Overflow, response by @vacawama, accessed on 29.05.2026
-    // # URL: https://stackoverflow.com/a/51448698
     /// Generate the NGrid struct used to represent an N-dimensional grid.
-    private mutating func generateNDGrid() {
-        generatedCode += """
-        struct NDGrid {
-            let dimensions: [Int]
-            var cells: [Int]
-            private let neighborhoodType: String
-            private let range: Int
+    private mutating func generateNDGrid() throws {
+        let currentFileURL: URL = URL(fileURLWithPath: #filePath)
+        let NDGridURL: URL = currentFileURL.deletingLastPathComponent().appendingPathComponent("NDGrid.swift")
+        let sourceCode: String = try String(contentsOf: NDGridURL, encoding: .utf8)
 
-            init(dimensions: [Int], initialValue: Int = 0, neighborhoodType: String, range: Int) {
-                self.dimensions = dimensions
-                cells = Array(repeating: initialValue, count: dimensions.reduce(1, *))
-
-                self.neighborhoodType = neighborhoodType
-                self.range = range
-            }
-
-            func coordinates(linearIndex: Int) -> [Int] {
-                guard linearIndex >= 0 && linearIndex < cells.count else {
-                    fatalError("Linear index out of range")
-                }
-
-                var idx: Int = linearIndex
-                var coords: [Int] = Array(repeating: 0, count: dimensions.count)
-
-                for i: Int in (0..<dimensions.count).reversed() {
-                    coords[i] = idx % dimensions[i]
-                    idx = idx / dimensions[i]
-                }
-                return coords
-            }
-
-            func countNeighbors(idx: Int, stateType: Int) -> Int {
-                var neighborsIdx: [Int] = []
-                var res: Int = 0
-
-                switch neighborhoodType {
-                    case "Moore": neighborsIdx = getMooreNeighbors(idx)
-                    default: neighborsIdx = getVonNeumannNeighbors(idx)
-                }
-
-                for neighborIdx: Int in neighborsIdx {
-                    if cells[neighborIdx] == stateType {
-                        res += 1
-                    }
-                }
-                return res
-            }
-
-            private func getMooreNeighbors(_ idx: Int) ->[Int] {
-                let centerCoords: [Int] = coordinates(linearIndex: idx)
-                var result: [Int] = []
-                var actualNeighbor: [Int] = centerCoords
-
-                func rec(_ dim: Int) {
-                    if dim == dimensions.count {
-                        if actualNeighbor != centerCoords{
-                            result.append(index(actualNeighbor))
-                        }
-                        return
-                    }
-
-                    for i: Int in -range...range {
-                        if centerCoords[dim] + i >= 0 && centerCoords[dim] + i < dimensions[dim] {
-                            actualNeighbor[dim] = centerCoords[dim] + i
-                            rec(dim + 1)
-                        }
-                    }
-                }
-                rec(0)
-                return result
-            }
-
-            private func getVonNeumannNeighbors(_ idx: Int) ->[Int] {
-                let centerCoords: [Int] = coordinates(linearIndex: idx)
-                var result: [Int] = []
-                var actualNeighbor: [Int] = centerCoords
-
-                func rec(_ dim: Int) {
-                    if dim == dimensions.count {
-                        if actualNeighbor != centerCoords {
-                            var distance: Int = 0
-
-                            for i: Int in 0..<centerCoords.count {
-                                distance += abs(centerCoords[i] - actualNeighbor[i])
-                            }
-
-                            if distance <= range {
-                                result.append(index(actualNeighbor))
-                            }
-                        }
-                        return
-                    }
-
-                    for i: Int in -range...range {
-                        if centerCoords[dim] + i >= 0 && centerCoords[dim] + i < dimensions[dim] {
-                            actualNeighbor[dim] = centerCoords[dim] + i
-                            rec(dim + 1)
-                        }
-                    }
-                }
-                rec(0)
-                return result
-            }
-
-            private func index(_ indices: [Int]) -> Int {
-                guard indices.count == dimensions.count else { fatalError("Wrong number of indices: got \\(indices.count), expected \\(dimensions.count)") }
-                zip(dimensions, indices).forEach { dim, idx in
-                    if idx < 0 || idx >= dim { fatalError("Index out of range") }
-                }
-
-                var idx: [Int] = indices
-                var dims: [Int] = dimensions
-                var product: Int = 1
-                var total: Int = idx.removeLast()
-                while !idx.isEmpty {
-                    product *= dims.removeLast()
-                    total += (idx.removeLast() * product)
-                }
-
-                return total
-            }
-
-            subscript(_ indices: [Int]) -> Int {
-                get {
-                    return cells[index(indices)]
-                }
-                set {
-                    cells[index(indices)] = newValue
-                }
-            }
-        }\n\n
-        """
+        generatedCode += sourceCode
     }
     
     /// Generates the entry point of the program
@@ -318,10 +358,10 @@ struct SwiftGenerator {
         let dims: [Int] = \(Array(repeating: 20, count: dimension))
         var sim: Simulation = Simulation(dimensions: dims)
         
-        if sim.grid.cells.count >= 400 {
-            sim.grid.cells[200] = 1
-            sim.grid.cells[201] = 1
-            sim.grid.cells[202] = 1
+        if sim.grid.totalCellsCount >= 400 {
+            sim.grid.setCell(idx: 200, stateNum: 1)
+            sim.grid.setCell(idx: 201, stateNum: 1)
+            sim.grid.setCell(idx: 202, stateNum: 1)
         }
         
         sim.simulate()\n
