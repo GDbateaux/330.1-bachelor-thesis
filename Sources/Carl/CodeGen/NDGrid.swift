@@ -2,22 +2,48 @@ import Foundation
 
 // # Adapted from Stack Overflow, response by @vacawama, accessed on 29.05.2026
 // # URL: https://stackoverflow.com/a/51448698
+/// Represents a multi-dimensional grid managing cellular automata states
 struct NDGrid {
+    /// Configuration of offsets relative to a cell
     struct NeighborhoodOffset {
         let linear: Int
         let coordDelta: [Int]
     }
 
+    /// The size of each spatial axis
     let dimensions: [Int]
+
+    /// Total number of cells in the grid
     let totalCellsCount: Int
+
+    /// Total count of neighbors found within the predefined range for a cell with max neighbors
     var numNeighbors: Int
+
+    /// Bit-packed array containing the cell states
     private var cells: [UInt64]
+
+    /// Number of bits to represent a single cell state
     private var bitsPerState: Int
+
+    /// Maximum number of cell states packable inside one 64-bit integer
     private var numCellsPerInt: Int
+
+    /// Type of neighborhood ("Moore" or "VonNeumann")
     private let neighborhoodType: String
+
+    /// Neighborhood range
     private let range: Int
+
+    /// Array containing all offsets for local neighbors.
     private var neighborsOffsets: [NeighborhoodOffset]
 
+    /// Initializes a multi-dimensional grid using bit-packed integer storage.
+    /// 
+    /// - Parameters:
+    ///   - dimensions: Size of each grid axis
+    ///   - neighborhoodType: "Moore" or "VonNeumann"
+    ///   - range: Distance of neighborhood
+    ///   - stateCount: Total possible cell states.
     init(dimensions: [Int], neighborhoodType: String, range: Int, stateCount: Int) {
         self.dimensions = dimensions
         self.neighborhoodType = neighborhoodType
@@ -48,6 +74,10 @@ struct NDGrid {
         self.numNeighbors = neighborsOffsets.count
     }
 
+    /// Sets the state value of a specific cell
+    /// - Parameters:
+    ///   - idx: Linear index of the target cell
+    ///   - stateNum: Numeric value of the new state
     mutating func setCell(idx: Int, stateNum: Int) {
         let maxStates: Int = Int(pow(2.0, Double(bitsPerState)))
         
@@ -67,6 +97,10 @@ struct NDGrid {
         cells[arrayIndex] = cells[arrayIndex] | (UInt64(stateNum) << bitOffset)
     }
 
+    /// Extracts the state value of a specific cell
+    /// 
+    /// - Parameter idx: Linear index of the cell
+    /// - Returns: The cell state integer, or nil if the index is outside grid boundaries
     func getCell(_ idx: Int) -> Int? {
         let totalCellsCount: Int = dimensions.reduce(1, *)
 
@@ -83,6 +117,12 @@ struct NDGrid {
         return Int(cellValue)
     }
 
+    /// Counts how many neighbors cells match a specific state
+    /// 
+    /// - Parameters:
+    ///   - idx: Linear index of the reference cell
+    ///   - stateType: The target state integer to match
+    /// - Returns: The number of matching neighbors cells
     func countNeighbors(idx: Int, stateType: Int) -> Int {
         var res: Int = 0
 
@@ -98,6 +138,10 @@ struct NDGrid {
         return res
     }
 
+    /// Collects the current state values of all valid surrounding neighbors
+    /// 
+    /// - Parameter idx: Linear index of the reference cell
+    /// - Returns: An array containing the integer states of all neighbors
     func getNeighbors(idx: Int) -> [Int] {
         var result: [Int] = []
 
@@ -109,6 +153,10 @@ struct NDGrid {
         return result
     }
 
+    /// Get linear index offsets that fit inside the grid boundaries
+    /// 
+    /// - Parameter idx: Linear index of the reference cell
+    /// - Returns: Array of linear offsets that do not cross edges
     private func getValidNeighborsOffsets(idx: Int)-> [Int] {
         let coords: [Int] = coordinates(linearIndex: idx)
         var res: [Int] = []
@@ -131,6 +179,9 @@ struct NDGrid {
         return res
     }
 
+    /// Generates offsets for a Moore neighborhood
+    /// 
+    /// - Returns: An array of NeighborhoodOffset configurations
     private func getMooreOffset() -> [NeighborhoodOffset] {
         var result: [NeighborhoodOffset] = []
         var actualOffset: Int = 0
@@ -164,6 +215,9 @@ struct NDGrid {
         return result
     }
 
+    /// Generates offsets for a Von Neumann neighborhood
+    /// 
+    /// - Returns: An array of NeighborhoodOffset configurations
     private func getVonNeumannOffset() -> [NeighborhoodOffset] {
         var result: [NeighborhoodOffset] = []
         var actualOffset: Int = 0
@@ -199,6 +253,10 @@ struct NDGrid {
         return result
     }
 
+    /// Converts multi-dimensional coordinates into its linear array index
+    /// 
+    /// - Parameter indices: Array of coordinate across all grid dimensions
+    /// - Returns: Linear array index integer
     private func index(_ indices: [Int]) -> Int {
         guard indices.count == dimensions.count else { 
             fatalError("Wrong number of indices: got \\(indices.count), expected \\(dimensions.count)") 
@@ -222,6 +280,10 @@ struct NDGrid {
         return total
     }
 
+    /// Converts a linear array index into its multi-dimensional coordinate components
+    /// 
+    /// - Parameter linearIndex: Linear array index integer
+    /// - Returns:  An array containing coordinates for each specific axis
     private func coordinates(linearIndex: Int) -> [Int] {
         guard linearIndex >= 0 && linearIndex < totalCellsCount else {
             fatalError("Linear index out of range")

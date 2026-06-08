@@ -46,8 +46,6 @@ struct SwiftGenerator {
     /// 
     /// - Returns: A string containing the swift code
     mutating func generate() throws -> String {
-        
-
         generatedCode += "struct Simulation {\n"
         generatedCode += "    var grid: NDGrid\n"
         generatedCode += "    var history: [NDGrid] = []\n"
