@@ -243,9 +243,9 @@ struct Parser {
 
     /// Parses a primary expression
     private mutating func parsePrimary() throws -> Expression {
-        if match(TokenType.float, TokenType.integer) {
+        if match(TokenType.integer) {
             let lastToken: Token = tokens[current-1]
-            guard let number: Double = Double(lastToken.lexeme) else {
+            guard let number: Int = Int(lastToken.lexeme) else {
                 throw CompilerError.parserError(
                     message: "Invalid number", 
                     token: lastToken
@@ -279,9 +279,8 @@ struct Parser {
             _ = try consume(TokenType.rightParenthesis, "Expected ')' after function arguments.")
             return Expression.call(functionName, parameters)
         }
-
         throw CompilerError.parserError(
-            message: "Expected a number, a '#' shortcut, a function call, or '('; got '\(tokens[current].lexeme)'.",
+            message: "Expected an integer number, a '#' shortcut, a function call, or '('; got '\(tokens[current].lexeme)'.",
             token: tokens[current]
         )
     }

@@ -52,7 +52,7 @@ import Testing
                 condition: Expression.binary(
                     Expression.call("count_neighbors", ["Fire"]),
                     BinaryOperator.greater,
-                    Expression.number(0.0)
+                    Expression.number(0)
                 ),
                 probability: 1.0
             ),
@@ -68,7 +68,7 @@ import Testing
                 condition: Expression.binary(
                     Expression.call("count_neighbors", ["Fire"]),
                     BinaryOperator.equalEqual,
-                    Expression.number(0.0)
+                    Expression.number(0)
                 ),
                 probability: 1.0
             ),
@@ -140,13 +140,13 @@ import Testing
                     Expression.binary(
                         Expression.neighborShortcut("ElectronHead"),
                         BinaryOperator.equalEqual,
-                        Expression.number(1.0)
+                        Expression.number(1)
                     ), 
                     BinaryOperator.or,
                     Expression.binary(
                         Expression.neighborShortcut("ElectronHead"),
                         BinaryOperator.equalEqual,
-                        Expression.number(2.0)
+                        Expression.number(2)
                     )
                 ),
                 probability: 1.0
