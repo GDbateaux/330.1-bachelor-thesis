@@ -17,7 +17,7 @@ struct NDGrid {
     let totalCellsCount: Int
 
     /// Total count of neighbors found within the predefined range for a cell with max neighbors
-    var numNeighbors: Int
+    var numNeighbors: Int = 0
 
     /// Bit-packed array containing the cell states
     private var cells: [UInt64]
@@ -35,7 +35,16 @@ struct NDGrid {
     private let range: Int
 
     /// Array containing all offsets for local neighbors.
-    private var neighborsOffsets: [NeighborhoodOffset]
+    private var standardNeighborsOffsets: [NeighborhoodOffset] = []
+
+    /// Linear offsets used for standard cells away from boundaries
+    private var standardLinearOffsets: [Int] = []
+
+    /// Lookup dictionary mapping a boundary cell's index to its unique neighborhood offset configuration index in `boundaryNeighborhoodConfigs`
+    private var boundaryCellConfigIndices: [Int: Int] = [:]
+
+    /// Unique lists of relative offsets computed for boundary positions
+    private var boundaryNeighborhoodConfigs: [[Int]] = []
 
     /// Initializes a multi-dimensional grid using bit-packed integer storage.
     /// 
@@ -62,16 +71,16 @@ struct NDGrid {
         let allocationSize: Int = Int(ceil(Double(totalCellsCount) / Double(numCellsPerInt)))
         self.cells = Array(repeating: 0, count: allocationSize)
 
-        self.neighborsOffsets = []
-        self.numNeighbors = 0
-        
         if neighborhoodType == "Moore" {
-            self.neighborsOffsets = getMooreOffset()
+            self.standardNeighborsOffsets = getMooreOffset()
         }
         else {
-            self.neighborsOffsets = getVonNeumannOffset()
+            self.standardNeighborsOffsets = getVonNeumannOffset()
         }
-        self.numNeighbors = neighborsOffsets.count
+        self.numNeighbors = standardNeighborsOffsets.count
+        self.standardLinearOffsets = standardNeighborsOffsets.map({ $0.linear })
+
+        setBoundaryNeighbors()
     }
 
     /// Sets the state value of a specific cell
@@ -102,8 +111,6 @@ struct NDGrid {
     /// - Parameter idx: Linear index of the cell
     /// - Returns: The cell state integer, or nil if the index is outside grid boundaries
     func getCell(_ idx: Int) -> Int? {
-        let totalCellsCount: Int = dimensions.reduce(1, *)
-
         if idx < 0 || idx >= totalCellsCount {
             return nil
         }
@@ -126,7 +133,7 @@ struct NDGrid {
     func countNeighbors(idx: Int, stateType: Int) -> Int {
         var res: Int = 0
 
-        for offset: Int in getValidNeighborsOffsets(idx: idx) {
+        for offset: Int in getValidLinearOffsets(idx: idx) {
             let neighborIdx: Int = idx + offset
             
             if let type: Int = getCell(neighborIdx) {
@@ -143,9 +150,14 @@ struct NDGrid {
     /// - Parameter idx: Linear index of the reference cell
     /// - Returns: An array containing the integer states of all neighbors
     func getNeighbors(idx: Int) -> [Int] {
+        let offsets: [Int] = getValidLinearOffsets(idx: idx)
         var result: [Int] = []
 
-        for offset: Int in getValidNeighborsOffsets(idx: idx) {
+        // # Optimization inspired by Medium article by @Sherzod Akhmedov, accessed on 10.06.2026
+        // # URL: https://akhmedovgg.medium.com/optimizing-arrays-in-swift-leveraging-reservecapacity-for-performance-20417a64ecb6
+        result.reserveCapacity(offsets.count)
+
+        for offset: Int in offsets {
             if let neighbor = getCell(idx + offset) {
                 result.append(neighbor)
             }
@@ -153,16 +165,27 @@ struct NDGrid {
         return result
     }
 
+    /// Retrieves the precomputed valid neighbor offsets for a given cell.
+    /// 
+    /// - Parameter idx: Linear index of the target cell.
+    /// - Returns: An array of valid linear index offsets.
+    private func getValidLinearOffsets(idx: Int) -> [Int] {
+        if let configIdx: Int = boundaryCellConfigIndices[idx] {
+            return boundaryNeighborhoodConfigs[configIdx]
+        }
+        return standardLinearOffsets
+    }
+
     /// Get linear index offsets that fit inside the grid boundaries
     /// 
     /// - Parameter idx: Linear index of the reference cell
     /// - Returns: Array of linear offsets that do not cross edges
-    private func getValidNeighborsOffsets(idx: Int)-> [Int] {
+    private func computeValidLinearOffsets(idx: Int)-> [Int] {
         let coords: [Int] = coordinates(linearIndex: idx)
         var res: [Int] = []
         var isValid: Bool = true
 
-        for offset: NeighborhoodOffset in neighborsOffsets {
+        for offset: NeighborhoodOffset in standardNeighborsOffsets {
             for d: Int in 0..<dimensions.count {
                 let targetCoord: Int = coords[d] + offset.coordDelta[d]
 
@@ -177,6 +200,25 @@ struct NDGrid {
             isValid = true
         }
         return res
+    }
+
+    /// Iterates through the entire grid to detect which cells touch the boundaries.
+    /// Border neighbors configurations offsets are cached to optimize simulation steps.
+    private mutating func setBoundaryNeighbors() {
+        for i: Int in 0..<totalCellsCount {
+            let boundaryNeighborsOffsets: [Int] = computeValidLinearOffsets(idx: i)
+
+            if boundaryNeighborsOffsets.count != numNeighbors {
+                if let idx = boundaryNeighborhoodConfigs.firstIndex(of: boundaryNeighborsOffsets) {
+                    boundaryCellConfigIndices[i] = idx
+                }
+                else {
+                    boundaryNeighborhoodConfigs.append(boundaryNeighborsOffsets)
+                    boundaryCellConfigIndices[i] = boundaryNeighborhoodConfigs.count - 1
+                }
+                
+            }
+        }
     }
 
     /// Generates offsets for a Moore neighborhood
@@ -251,33 +293,6 @@ struct NDGrid {
         }
         rec()
         return result
-    }
-
-    /// Converts multi-dimensional coordinates into its linear array index
-    /// 
-    /// - Parameter indices: Array of coordinate across all grid dimensions
-    /// - Returns: Linear array index integer
-    private func index(_ indices: [Int]) -> Int {
-        guard indices.count == dimensions.count else { 
-            fatalError("Wrong number of indices: got \\(indices.count), expected \\(dimensions.count)") 
-        }
-
-        zip(dimensions, indices).forEach { dim, idx in
-            if idx < 0 || idx >= dim { 
-                fatalError("Index out of range") 
-            }
-        }
-
-        var idx: [Int] = indices
-        var dims: [Int] = dimensions
-        var product: Int = 1
-        var total: Int = idx.removeLast()
-
-        while !idx.isEmpty {
-            product *= dims.removeLast()
-            total += (idx.removeLast() * product)
-        }
-        return total
     }
 
     /// Converts a linear array index into its multi-dimensional coordinate components
