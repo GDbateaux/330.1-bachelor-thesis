@@ -175,6 +175,17 @@ struct NDGrid {
         return standardLinearOffsets
     }
 
+    /// Retrieves the precomputed valid neighbor offsets for a given cell.
+    /// 
+    /// - Parameter idx: Linear index of the target cell.
+    /// - Returns: An array of valid linear index offsets.
+    private func getValidLinearOffsets(idx: Int) -> [Int] {
+        if let configIdx: Int = boundaryCellConfigIndices[idx] {
+            return boundaryNeighborhoodConfigs[configIdx]
+        }
+        return standardLinearOffsets
+    }
+
     /// Get linear index offsets that fit inside the grid boundaries
     /// 
     /// - Parameter idx: Linear index of the reference cell
