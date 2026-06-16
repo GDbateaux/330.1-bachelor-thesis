@@ -144,9 +144,9 @@ struct SwiftGenerator {
 
     private mutating func generateNextCell() {
         generatedCode += """
-            func nextCell(grid: NDGrid, idx: Int) -> Int {
+            func nextCell(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> Int {
                 if let lookup = lookupNextState {
-                    if let key = getLookupKey(grid: grid, idx: idx) {
+                    if let key = getLookupKey(grid: grid, idx: idx, neighborBuffer: &neighborBuffer) {
                         if let nextState = lookup[key] {
                             return nextState
                         }
@@ -189,13 +189,13 @@ struct SwiftGenerator {
 
     private mutating func generateGetLookupKey() {
         generatedCode += """
-            func getLookupKey(grid: NDGrid, idx: Int) -> UInt64? {
+            func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> UInt64? {
                 guard let currentState = grid.getCell(idx) else {
                     return nil
                 }
 
-                let neighbors: [Int] = grid.getNeighbors(idx: idx)
-                if neighbors.count != grid.numNeighbors {
+                let neighborsCount: Int = grid.getNeighbors(idx: idx, neighborBuffer: &neighborBuffer)
+                if neighborsCount != grid.numNeighbors {
                     return nil
                 }
 
@@ -203,8 +203,8 @@ struct SwiftGenerator {
                 let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
                 var key: UInt64 = UInt64(currentState)
 
-                for neighbor: Int in neighbors {
-                    key = (key << bitsPerState) | UInt64(neighbor)
+                for i: Int in 0..<neighborsCount {
+                    key = (key << bitsPerState) | UInt64(neighborBuffer[i])
                 }
                 return key
             }\n\n
@@ -288,9 +288,10 @@ struct SwiftGenerator {
         generatedCode += """
                 mutating func step() {
                     let previousGridState: NDGrid = self.grid
+                    var neighborBuffer: [Int] = [Int](repeating: 0, count: grid.numNeighbors)
 
                     for i: Int in 0..<grid.totalCellsCount {
-                        let newState: Int = nextCell(grid: previousGridState, idx: i)
+                        let newState: Int = nextCell(grid: previousGridState, idx: i, neighborBuffer: &neighborBuffer)
                         self.grid.setCell(idx: i, stateNum: newState)
                     }
                 }\n\n

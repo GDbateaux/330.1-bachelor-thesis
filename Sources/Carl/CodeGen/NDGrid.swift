@@ -149,20 +149,17 @@ struct NDGrid {
     /// 
     /// - Parameter idx: Linear index of the reference cell
     /// - Returns: An array containing the integer states of all neighbors
-    func getNeighbors(idx: Int) -> [Int] {
+    func getNeighbors(idx: Int, neighborBuffer: inout [Int]) -> Int {
         let offsets: [Int] = getValidLinearOffsets(idx: idx)
-        var result: [Int] = []
-
-        // # Optimization inspired by Medium article by @Sherzod Akhmedov, accessed on 10.06.2026
-        // # URL: https://akhmedovgg.medium.com/optimizing-arrays-in-swift-leveraging-reservecapacity-for-performance-20417a64ecb6
-        result.reserveCapacity(offsets.count)
+        var count: Int = 0
 
         for offset: Int in offsets {
             if let neighbor = getCell(idx + offset) {
-                result.append(neighbor)
+                neighborBuffer[count] = neighbor
+                count += 1
             }
         }
-        return result
+        return count
     }
 
     /// Retrieves the precomputed valid neighbor offsets for a given cell.
