@@ -98,7 +98,9 @@ struct SwiftGenerator {
                     if currentIndex == keyElementsCount - 1 {
                         for state: Int in 0..<stateCount {
                             let nextPattern: [Int] = pattern + [state]
-                            lookupNextState[currentKey | UInt64(state)] = evaluateNextState(pattern: nextPattern)
+                            if let nextState = evaluateNextState(pattern: nextPattern) {
+                                lookupNextState[currentKey | UInt64(state)] = nextState
+                            }
                         }
                         return
                     }
@@ -117,7 +119,7 @@ struct SwiftGenerator {
 
     /// Generates the evaluateNextState function that determines the target state from a pattern using automaton rules
     private mutating func generateEvaluateNextState() {
-        generatedCode += "    private func evaluateNextState(pattern: [Int]) -> Int {\n"
+        generatedCode += "    private func evaluateNextState(pattern: [Int]) -> Int? {\n"
         generatedCode += "        let currentState: Int = pattern[0]\n"
         generatedCode += "        let neighbors: [Int] = Array(pattern.dropFirst())\n\n"
 
@@ -136,11 +138,15 @@ struct SwiftGenerator {
             }
             
             if rule.probability < 1 {
-                generatedCode += " && Double.random(in: 0...1) <= \(rule.probability)" 
+                generatedCode += " {\n"
+                generatedCode += "            return nil\n"
+                generatedCode += "        }\n"
             }
-            generatedCode += " {\n"
-            generatedCode += "            return \(to)\n"
-            generatedCode += "        }\n"
+            else {
+                generatedCode += " {\n"
+                generatedCode += "            return \(to)\n"
+                generatedCode += "        }\n"
+            }
         }
         generatedCode += "        return currentState\n"
         generatedCode += "    }\n\n"

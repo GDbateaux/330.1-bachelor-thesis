@@ -12,16 +12,24 @@ struct Carl {
             source = try String(contentsOfFile: path, encoding: .utf8)
         } else {
             source = """
-                automaton GameOfLife {
+            automaton ForestFire {
                 world {
-                    states { Dead, Alive }
-                    neighborhood: Moore(1)
+                    states {
+                        Fire,
+                        Tree,
+                        Empty,
+                        Ash
+                    }
+                    neighborhood: VonNeumann(1)
                     dimension: 2
                 }
-
+                
                 rules {
-                    Dead -> Alive when count_neighbors(Alive) == 3
-                    Alive -> Dead when count_neighbors(Alive) < 2 or count_neighbors(Alive) > 3
+                    Fire -> Ash
+                    Tree -> Fire when count_neighbors(Fire) > 0
+                    Tree -> Fire with prob 0.01
+                    Ash -> Empty when count_neighbors(Fire) == 0
+                    Empty -> Tree with prob 0.01
                 }
             }
             """
