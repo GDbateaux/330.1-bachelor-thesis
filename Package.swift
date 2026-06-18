@@ -16,6 +16,7 @@ let package = Package(
                 "rtextures.c",
                 "rtext.c",
                 "rmodels.c",
+                "raygui.c"
             ],
             publicHeadersPath: ".",
             cSettings: [

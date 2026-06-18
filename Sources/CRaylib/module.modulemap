@@ -1,5 +1,6 @@
 module CRaylib {
     header "raylib.h"
     header "raymath.h"
+    header "raygui.h"
     export *
 }

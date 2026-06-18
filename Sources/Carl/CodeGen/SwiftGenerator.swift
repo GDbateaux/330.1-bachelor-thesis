@@ -51,6 +51,7 @@ struct SwiftGenerator {
         generatedCode += "struct Simulation {\n"
         generatedCode += "    var grid: NDGrid\n"
         generatedCode += "    var history: [NDGrid] = []\n"
+        generatedCode += "    var stateNames: [String] = \(states)\n"
         generatedCode += "    var lookupNextState: [UInt64:Int]?\n\n"
         generatedCode += "    init(dimensions: [Int]) {\n"
         generatedCode += "        self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))\n"
@@ -389,6 +390,9 @@ struct SwiftGenerator {
             let stateCount: Int = \(states.count)
             var colors: [Color] = []
 
+            var showMenu: Bool = false
+            var selectedColorPicker: Int = -1
+
             for i: Int in 0..<stateCount {
                 switch i {
                     case 0: colors.append(Color(r: 0, g: 0, b: 0, a: 255))
@@ -406,48 +410,51 @@ struct SwiftGenerator {
                 rotation: 0,
                 zoom: 1.0
             )
+            GuiSetIconScale(3)
 
             while !WindowShouldClose() {
-                if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
-                    var delta: Vector2 = GetMouseDelta()
-                    delta = Vector2Scale(delta, -1.0/camera.zoom)
-                    camera.target = Vector2Add(camera.target, delta)
-                }
-
-                let wheel: Float = GetMouseWheelMove()
-                if wheel != 0 {
-                    let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
-
-                    camera.offset = GetMousePosition()
-                    camera.target = mouseWorldPos
-
-                    let scale: Float = 0.2 * wheel
-                    camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
-                }
-
-                if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT.rawValue) {
-                    let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
-
-                    let cellX: Int = Int(floor(mousePosition.x / Float(cellSize)))
-                    let cellY: Int = Int(floor(mousePosition.y / Float(cellSize)))
-
-                    if cellX >= 0 && cellX < gridW && cellY >= 0 && cellY < gridH {
-                        let i: Int = cellY * gridW + cellX
-                        let current: Int = sim.grid.getCell(i) ?? 0
-                        sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
+                if !showMenu {
+                    if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
+                        var delta: Vector2 = GetMouseDelta()
+                        delta = Vector2Scale(delta, -1.0/camera.zoom)
+                        camera.target = Vector2Add(camera.target, delta)
                     }
-                }
 
-                if IsKeyPressed(KEY_SPACE.rawValue) {
-                    isRunning = !isRunning
-                }
+                    let wheel: Float = GetMouseWheelMove()
+                    if wheel != 0 {
+                        let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
 
-                if !isRunning && IsKeyPressed(KEY_RIGHT.rawValue) {
-                    sim.step()
-                }
+                        camera.offset = GetMousePosition()
+                        camera.target = mouseWorldPos
 
-                if !isRunning && IsKeyPressed(KEY_LEFT.rawValue) {
-                    sim.stepBack()
+                        let scale: Float = 0.2 * wheel
+                        camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
+                    }
+
+                    if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT.rawValue) {
+                        let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
+
+                        let cellX: Int = Int(floor(mousePosition.x / Float(cellSize)))
+                        let cellY: Int = Int(floor(mousePosition.y / Float(cellSize)))
+
+                        if cellX >= 0 && cellX < gridW && cellY >= 0 && cellY < gridH {
+                            let i: Int = cellY * gridW + cellX
+                            let current: Int = sim.grid.getCell(i) ?? 0
+                            sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
+                        }
+                    }
+
+                    if IsKeyPressed(KEY_SPACE.rawValue) {
+                        isRunning = !isRunning
+                    }
+
+                    if !isRunning && IsKeyPressed(KEY_RIGHT.rawValue) {
+                        sim.step()
+                    }
+
+                    if !isRunning && IsKeyPressed(KEY_LEFT.rawValue) {
+                        sim.stepBack()
+                    }
                 }
 
                 BeginDrawing()
@@ -468,7 +475,54 @@ struct SwiftGenerator {
                             }
                         }
                     EndMode2D()
+
+                    if showMenu {
+                        let menuWidth: Float = Float(GetScreenWidth()) / 3
+                        GuiPanel(Rectangle(x: 0, y: 0, width: menuWidth, height: Float(GetScreenHeight())), "MENU")
+
+                        for i: Int in 0..<stateCount {
+                            let row: Int32 = 30 + Int32(i) * 30
+                            DrawRectangle(5, row, 20, 20, colors[i])
+
+                            if GuiButton(Rectangle(x: 30, y: Float(row), width: menuWidth - 40, height: 20), sim.stateNames[i]) != 0 {
+                                selectedColorPicker = selectedColorPicker == i ? -1 : i
+                            }
+                        }
+
+                        if selectedColorPicker >= 0 {
+                            let popupWidth: Float = 260
+                            let popupHeight: Float = 230
+                            let popupX: Float = (Float(GetScreenWidth()) - popupWidth) / 2
+                            let popupY: Float = (Float(GetScreenHeight()) - popupHeight) / 2
+
+                            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Color(r: 0, g: 0, b: 0, a: 60))
+                            if GuiWindowBox(Rectangle(x: popupX, y: popupY, width: popupWidth, height: popupHeight), sim.stateNames[selectedColorPicker]) == 1 {
+                                selectedColorPicker = -1
+                            }
+                            else {
+                                GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
+                                
+                                var alphaVal: Float = Float(colors[selectedColorPicker].a) / 255.0
+                                GuiColorBarAlpha(Rectangle(x: popupX + 10, y: popupY + 170, width: popupWidth - 40, height: 20), "", &alphaVal)
+                                colors[selectedColorPicker].a = UInt8(alphaVal * 255.0)
+                            }
+                        }
+                        else {
+                            if IsMouseButtonPressed(MOUSE_BUTTON_LEFT.rawValue) && GetMouseX() > GetScreenWidth() / 3 {
+                                selectedColorPicker = -1
+                                showMenu = false
+                                isRunning = true
+                            }
+                        }
+                    }
+                    else {
+                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(ICON_BURGER_MENU.rawValue, "")) != 0 {
+                            showMenu = true
+                            isRunning = false
+                        }
+                    }
                 EndDrawing()
+
                 if isRunning {
                     sim.step()
                 }
