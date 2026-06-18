@@ -145,10 +145,12 @@ struct NDGrid {
         return res
     }
 
-    /// Collects the current state values of all valid surrounding neighbors
+    /// Fills a pre-allocated buffer with the state values of all valid neighbors
     /// 
-    /// - Parameter idx: Linear index of the reference cell
-    /// - Returns: An array containing the integer states of all neighbors
+    /// - Parameters:
+    ///   - idx: Linear index of the reference cell
+    ///   - neighborBuffer: Pre-allocated buffer to fill with neighbor states
+    /// - Returns: The number of neighbors written to the buffer
     func getNeighbors(idx: Int, neighborBuffer: inout [Int]) -> Int {
         let offsets: [Int] = getValidLinearOffsets(idx: idx)
         var count: Int = 0
