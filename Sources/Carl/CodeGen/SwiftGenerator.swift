@@ -75,6 +75,7 @@ struct SwiftGenerator {
         generateGetLookupKey()
     }
 
+    /// Generates the function that pre-computes all state transitions into an optional lookup dictionary for fast evaluation
     private mutating func generateBuildLookupNextCell() {
         generatedCode += """
             private func buildLookupNextCell() -> [UInt64: Int]? {
@@ -112,6 +113,7 @@ struct SwiftGenerator {
         """
     }
 
+    /// Generates the evaluateNextState function that determines the target state from a pattern using automaton rules
     private mutating func generateEvaluateNextState() {
         generatedCode += "    func evaluateNextState(pattern: [Int]) -> Int {\n"
         generatedCode += "        let currentState: Int = pattern[0]\n"
@@ -142,11 +144,12 @@ struct SwiftGenerator {
         generatedCode += "    }\n\n"
     }
 
+    /// Generates the nextCell function that computes the next state of a single cell, using the lookup table if possible
     private mutating func generateNextCell() {
         generatedCode += """
-            func nextCell(grid: NDGrid, idx: Int) -> Int {
+            func nextCell(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> Int {
                 if let lookup = lookupNextState {
-                    if let key = getLookupKey(grid: grid, idx: idx) {
+                    if let key = getLookupKey(grid: grid, idx: idx, neighborBuffer: &neighborBuffer) {
                         if let nextState = lookup[key] {
                             return nextState
                         }
@@ -161,6 +164,9 @@ struct SwiftGenerator {
         """
     }
 
+    /// Generates the conditional code that applies rules sequentially at runtime (fallback when no lookup table is used)
+    /// 
+    /// - Returns: The swift code of the rules
     private func rulesSwiftCode() -> String {
         var code: String = ""
         for rule: Rule in self.rules {
@@ -187,15 +193,16 @@ struct SwiftGenerator {
         return code
     }
 
+    /// Generates the getLookupKey function that builds a key from a cell and its neighbors for lookup table access
     private mutating func generateGetLookupKey() {
         generatedCode += """
-            func getLookupKey(grid: NDGrid, idx: Int) -> UInt64? {
+            func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> UInt64? {
                 guard let currentState = grid.getCell(idx) else {
                     return nil
                 }
 
-                let neighbors: [Int] = grid.getNeighbors(idx: idx)
-                if neighbors.count != grid.numNeighbors {
+                let neighborsCount: Int = grid.getNeighbors(idx: idx, neighborBuffer: &neighborBuffer)
+                if neighborsCount != grid.numNeighbors {
                     return nil
                 }
 
@@ -203,26 +210,10 @@ struct SwiftGenerator {
                 let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
                 var key: UInt64 = UInt64(currentState)
 
-                for neighbor: Int in neighbors {
-                    key = (key << bitsPerState) | UInt64(neighbor)
+                for i: Int in 0..<neighborsCount {
+                    key = (key << bitsPerState) | UInt64(neighborBuffer[i])
                 }
                 return key
-            }\n\n
-        """
-    }
-
-    private mutating func generatecomputeNeighborhoodKey() {
-        generatedCode += """
-            private func computeNeighborhoodKey(grid: NDGrid, idx: Int, currentState: Int) -> Int64 {
-                let stateCount: Int = \(states.count)
-                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
-                var neighborhoodKey: Int64 = Int64(currentState)
-                
-                for offset in grid.neighborsOffsets {
-                    let neighborState = grid.getCell(idx + offset) ?? 0
-                    neighborhoodKey = (neighborhoodKey << bitsPerState) | Int64(neighborState)
-                }
-                return neighborhoodKey
             }\n\n
         """
     }
@@ -288,9 +279,10 @@ struct SwiftGenerator {
         generatedCode += """
                 mutating func step() {
                     let previousGridState: NDGrid = self.grid
+                    var neighborBuffer: [Int] = [Int](repeating: 0, count: grid.numNeighbors)
 
                     for i: Int in 0..<grid.totalCellsCount {
-                        let newState: Int = nextCell(grid: previousGridState, idx: i)
+                        let newState: Int = nextCell(grid: previousGridState, idx: i, neighborBuffer: &neighborBuffer)
                         self.grid.setCell(idx: i, stateNum: newState)
                     }
                 }\n\n

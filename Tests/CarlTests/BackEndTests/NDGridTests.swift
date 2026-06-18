@@ -27,9 +27,11 @@ import Foundation
     grid.setCell(idx: 1, stateNum: 1)
     grid.setCell(idx: 3, stateNum: 1)
 
-    let neighbors: [Int] = grid.getNeighbors(idx: 2)
+    var buffer: [Int] = Array(repeating: 0, count: grid.numNeighbors)
+    let count: Int = grid.getNeighbors(idx: 2, neighborBuffer: &buffer)
+    #expect(count == 3)
+    #expect(buffer[0..<count] == [1, 0, 0])
 
-    #expect(neighbors == [1, 0, 0])
     #expect(grid.countNeighbors(idx: 2, stateType: 0) == 2)
     #expect(grid.countNeighbors(idx: 2, stateType: 1) == 1) 
 }
