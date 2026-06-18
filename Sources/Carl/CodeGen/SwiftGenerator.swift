@@ -46,9 +46,12 @@ struct SwiftGenerator {
     /// 
     /// - Returns: A string containing the swift code
     mutating func generate() throws -> String {
+        generatedCode += "import Foundation\n"
+        generatedCode += "import CRaylib\n\n"
         generatedCode += "struct Simulation {\n"
         generatedCode += "    var grid: NDGrid\n"
         generatedCode += "    var history: [NDGrid] = []\n"
+        generatedCode += "    var stateNames: [String] = \(states)\n"
         generatedCode += "    var lookupNextState: [UInt64:Int]?\n\n"
         generatedCode += "    init(dimensions: [Int]) {\n"
         generatedCode += "        self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))\n"
@@ -80,7 +83,7 @@ struct SwiftGenerator {
         generatedCode += """
             private func buildLookupNextCell() -> [UInt64: Int]? {
                 let keyElementsCount: Int = self.grid.numNeighbors + 1
-                let stateCount: Int = 2
+                let stateCount: Int = \(states.count)
                 let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
                 
                 let totalCombinations: Int = Int(pow(Double(stateCount), Double(keyElementsCount)))
@@ -96,7 +99,9 @@ struct SwiftGenerator {
                     if currentIndex == keyElementsCount - 1 {
                         for state: Int in 0..<stateCount {
                             let nextPattern: [Int] = pattern + [state]
-                            lookupNextState[currentKey | UInt64(state)] = evaluateNextState(pattern: nextPattern)
+                            if let nextState = evaluateNextState(pattern: nextPattern) {
+                                lookupNextState[currentKey | UInt64(state)] = nextState
+                            }
                         }
                         return
                     }
@@ -115,7 +120,7 @@ struct SwiftGenerator {
 
     /// Generates the evaluateNextState function that determines the target state from a pattern using automaton rules
     private mutating func generateEvaluateNextState() {
-        generatedCode += "    func evaluateNextState(pattern: [Int]) -> Int {\n"
+        generatedCode += "    private func evaluateNextState(pattern: [Int]) -> Int? {\n"
         generatedCode += "        let currentState: Int = pattern[0]\n"
         generatedCode += "        let neighbors: [Int] = Array(pattern.dropFirst())\n\n"
 
@@ -134,11 +139,15 @@ struct SwiftGenerator {
             }
             
             if rule.probability < 1 {
-                generatedCode += " && Double.random(in: 0...1) <= \(rule.probability)" 
+                generatedCode += " {\n"
+                generatedCode += "            return nil\n"
+                generatedCode += "        }\n"
             }
-            generatedCode += " {\n"
-            generatedCode += "            return \(to)\n"
-            generatedCode += "        }\n"
+            else {
+                generatedCode += " {\n"
+                generatedCode += "            return \(to)\n"
+                generatedCode += "        }\n"
+            }
         }
         generatedCode += "        return currentState\n"
         generatedCode += "    }\n\n"
@@ -147,7 +156,7 @@ struct SwiftGenerator {
     /// Generates the nextCell function that computes the next state of a single cell, using the lookup table if possible
     private mutating func generateNextCell() {
         generatedCode += """
-            func nextCell(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> Int {
+            private func nextCell(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> Int {
                 if let lookup = lookupNextState {
                     if let key = getLookupKey(grid: grid, idx: idx, neighborBuffer: &neighborBuffer) {
                         if let nextState = lookup[key] {
@@ -196,7 +205,7 @@ struct SwiftGenerator {
     /// Generates the getLookupKey function that builds a key from a cell and its neighbors for lookup table access
     private mutating func generateGetLookupKey() {
         generatedCode += """
-            func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> UInt64? {
+            private func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> UInt64? {
                 guard let currentState = grid.getCell(idx) else {
                     return nil
                 }
@@ -274,16 +283,28 @@ struct SwiftGenerator {
         return generatedExpr
     }
 
-    /// Generate the step function, which updates the grid
+    /// Generate the step annd stepBack functions, which updates the grid
     private mutating func generateStep() {
         generatedCode += """
                 mutating func step() {
                     let previousGridState: NDGrid = self.grid
                     var neighborBuffer: [Int] = [Int](repeating: 0, count: grid.numNeighbors)
+                    
+                    history.append(previousGridState)
+                    if history.count > 100 {
+                        history.removeFirst()
+                    }
 
                     for i: Int in 0..<grid.totalCellsCount {
                         let newState: Int = nextCell(grid: previousGridState, idx: i, neighborBuffer: &neighborBuffer)
                         self.grid.setCell(idx: i, stateNum: newState)
+                    }
+                }
+
+                mutating func stepBack() {
+                    if history.count > 0 {
+                        let previousGrid: NDGrid = history.removeLast()
+                        grid = previousGrid
                     }
                 }\n\n
             """
@@ -296,7 +317,6 @@ struct SwiftGenerator {
                 for i: Int in 0..<100 {
                     print("step \\(i)")
                     displayGrid()
-                    history.append(grid)
                     step()
                 }
             }\n\n
@@ -342,19 +362,174 @@ struct SwiftGenerator {
     
     /// Generates the entry point of the program
     private mutating func generateMain() {
-        generatedCode += """
-        print("--- Start of \(name) simulation---")
-        
-        let dims: [Int] = \(Array(repeating: 20, count: dimension))
-        var sim: Simulation = Simulation(dimensions: dims)
-        
-        if sim.grid.totalCellsCount >= 400 {
-            sim.grid.setCell(idx: 200, stateNum: 1)
-            sim.grid.setCell(idx: 201, stateNum: 1)
-            sim.grid.setCell(idx: 202, stateNum: 1)
+        generatedCode += "\n"
+
+        if dimension > 2 {
+            generatedCode += """
+            let dims: [Int] = \(Array(repeating: 20, count: dimension))
+            var sim: Simulation = Simulation(dimensions: dims)
+            print("Info: Rendering not available in \\(dims.count)D automaton.")
+            sim.simulate()\n
+            """
         }
-        
-        sim.simulate()\n
-        """
+        else {
+            // Inspired by "Raylib examples"
+            // Original source: https://www.raylib.com/examples.html
+            generatedCode += """
+            let dims: [Int] = \(Array(repeating: 200, count: dimension))
+            var isRunning: Bool = true
+            var sim: Simulation = Simulation(dimensions: dims)
+
+            let screenWidth: Int32 = 800;
+            let screenHeight: Int32 = screenWidth;
+
+            let gridW: Int = dims.count >= 2 ? dims[1] : dims[0]
+            let gridH: Int = dims.count >= 2 ? dims[0] : 1
+            let cellSize: Int32 = max(2, min(screenWidth / Int32(gridW), screenHeight / Int32(gridH)))
+
+            let stateCount: Int = \(states.count)
+            var colors: [Color] = []
+
+            var showMenu: Bool = false
+            var selectedColorPicker: Int = -1
+
+            for i: Int in 0..<stateCount {
+                switch i {
+                    case 0: colors.append(Color(r: 0, g: 0, b: 0, a: 255))
+                    case 1: colors.append(Color(r: 255, g: 255, b: 255, a: 255))
+                    default: colors.append(ColorFromHSV(Float(i - 2) * (360.0 / Float(stateCount - 2)), 0.8, 0.9))
+                }
+            }
+
+            SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
+            InitWindow(800, 800, "\(name)")
+            SetTargetFPS(30)
+            var camera: Camera2D = Camera2D(
+                offset: Vector2(x: 0, y: 0),
+                target: Vector2(x: 0, y: 0),
+                rotation: 0,
+                zoom: 1.0
+            )
+            GuiSetIconScale(3)
+
+            while !WindowShouldClose() {
+                if !showMenu {
+                    if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
+                        var delta: Vector2 = GetMouseDelta()
+                        delta = Vector2Scale(delta, -1.0/camera.zoom)
+                        camera.target = Vector2Add(camera.target, delta)
+                    }
+
+                    let wheel: Float = GetMouseWheelMove()
+                    if wheel != 0 {
+                        let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
+
+                        camera.offset = GetMousePosition()
+                        camera.target = mouseWorldPos
+
+                        let scale: Float = 0.2 * wheel
+                        camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
+                    }
+
+                    if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT.rawValue) {
+                        let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
+
+                        let cellX: Int = Int(floor(mousePosition.x / Float(cellSize)))
+                        let cellY: Int = Int(floor(mousePosition.y / Float(cellSize)))
+
+                        if cellX >= 0 && cellX < gridW && cellY >= 0 && cellY < gridH {
+                            let i: Int = cellY * gridW + cellX
+                            let current: Int = sim.grid.getCell(i) ?? 0
+                            sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
+                        }
+                    }
+
+                    if IsKeyPressed(KEY_SPACE.rawValue) {
+                        isRunning = !isRunning
+                    }
+
+                    if !isRunning && IsKeyPressed(KEY_RIGHT.rawValue) {
+                        sim.step()
+                    }
+
+                    if !isRunning && IsKeyPressed(KEY_LEFT.rawValue) {
+                        sim.stepBack()
+                    }
+                }
+
+                BeginDrawing()
+                    ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
+
+                    BeginMode2D(camera)
+                        let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
+                        var x: Int = 0
+                        var y: Int = 0
+                        for i: Int in 0..<sim.grid.totalCellsCount {
+                            let state: Int = sim.grid.getCell(i) ?? 0
+                            let color: Color = colors[state]
+                            DrawRectangle(Int32(x)*cellSize, Int32(y)*cellSize, cellSize, cellSize, color)
+                            x += 1
+                            if x % width == 0 && i != 0 {
+                                y += 1
+                                x = 0
+                            }
+                        }
+                    EndMode2D()
+
+                    if showMenu {
+                        let menuWidth: Float = Float(GetScreenWidth()) / 3
+                        GuiPanel(Rectangle(x: 0, y: 0, width: menuWidth, height: Float(GetScreenHeight())), "MENU")
+
+                        for i: Int in 0..<stateCount {
+                            let row: Int32 = 30 + Int32(i) * 30
+                            DrawRectangle(5, row, 20, 20, colors[i])
+
+                            if GuiButton(Rectangle(x: 30, y: Float(row), width: menuWidth - 40, height: 20), sim.stateNames[i]) != 0 {
+                                selectedColorPicker = selectedColorPicker == i ? -1 : i
+                            }
+                        }
+
+                        if selectedColorPicker >= 0 {
+                            let popupWidth: Float = 260
+                            let popupHeight: Float = 230
+                            let popupX: Float = (Float(GetScreenWidth()) - popupWidth) / 2
+                            let popupY: Float = (Float(GetScreenHeight()) - popupHeight) / 2
+
+                            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Color(r: 0, g: 0, b: 0, a: 60))
+                            if GuiWindowBox(Rectangle(x: popupX, y: popupY, width: popupWidth, height: popupHeight), sim.stateNames[selectedColorPicker]) == 1 {
+                                selectedColorPicker = -1
+                            }
+                            else {
+                                GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
+                                
+                                var alphaVal: Float = Float(colors[selectedColorPicker].a) / 255.0
+                                GuiColorBarAlpha(Rectangle(x: popupX + 10, y: popupY + 170, width: popupWidth - 40, height: 20), "", &alphaVal)
+                                colors[selectedColorPicker].a = UInt8(alphaVal * 255.0)
+                            }
+                        }
+                        else {
+                            if IsMouseButtonPressed(MOUSE_BUTTON_LEFT.rawValue) && GetMouseX() > GetScreenWidth() / 3 {
+                                selectedColorPicker = -1
+                                showMenu = false
+                                isRunning = true
+                            }
+                        }
+                    }
+                    else {
+                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(ICON_BURGER_MENU.rawValue, "")) != 0 {
+                            showMenu = true
+                            isRunning = false
+                        }
+                    }
+                EndDrawing()
+
+                if isRunning {
+                    sim.step()
+                }
+            }
+            CloseWindow()\n
+            """
+        }
+
     }
 }
