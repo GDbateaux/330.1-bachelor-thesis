@@ -368,12 +368,158 @@ struct SwiftGenerator {
     private mutating func generateMain() {
         generatedCode += "\n"
 
-        if dimension > 2 {
+        if dimension > 3 {
             generatedCode += """
             let dims: [Int] = \(Array(repeating: 20, count: dimension))
             var sim: Simulation = Simulation(dimensions: dims)
             print("Info: Rendering not available in \\(dims.count)D automaton.")
             sim.simulate()\n
+            """
+        }
+        else if dimension == 3 {
+            generatedCode += """
+            let dims: [Int] = \(Array(repeating: 20, count: dimension))
+            var isRunning: Bool = true
+            var sim: Simulation = Simulation(dimensions: dims)
+
+            let gridW: Int = dims[0]
+            let gridH: Int = dims[1]
+            let gridD: Int = dims.count >= 3 ? dims[2] : 1 
+
+            let worldSize: Float = 40
+            let cellSize: Float = worldSize / Float(max(gridW, max(gridH, gridD)))
+
+            let stateCount: Int = \(states.count)
+            var colors: [Color] = []
+
+            var showMenu: Bool = false
+            var selectedColorPicker: Int = -1
+
+            for i: Int in 0..<stateCount {
+                switch i {
+                    case 0: colors.append(Color(r: 0, g: 0, b: 0, a: 0))
+                    case 1: colors.append(Color(r: 255, g: 255, b: 255, a: 255))
+                    default: colors.append(ColorFromHSV(Float(i - 2) * (360.0 / Float(stateCount - 2)), 0.8, 0.9))
+                }
+            }
+
+            SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
+            InitWindow(800, 800, "\(name)")
+            SetTargetFPS(30)
+            var camera: Camera3D = Camera3D(
+                position: Vector3(x: 100, y: 100, z: 100),
+                target: Vector3(x: 0, y: 0, z: 0),
+                up: Vector3(x: 0, y: 1, z: 0),
+                fovy: 45,
+                projection : CAMERA_PERSPECTIVE.rawValue
+            )
+            GuiSetIconScale(3)
+
+            let cx: Float = Float(gridW) * cellSize / 2
+            let cy: Float = Float(gridH) * cellSize / 2
+            let cz: Float = Float(gridD) * cellSize / 2
+
+            while !WindowShouldClose() {
+                if !showMenu {
+                    if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
+                        UpdateCamera(&camera, CAMERA_THIRD_PERSON.rawValue);
+                    }
+
+                    let wheel: Float = GetMouseWheelMove()
+                    if wheel != 0 {
+                        let cameraPos: Vector3 = camera.position
+                        let dist: Float = sqrt(cameraPos.x * cameraPos.x + cameraPos.y * cameraPos.y + cameraPos.z * cameraPos.z)
+                        let newDist: Float = max(dist - wheel * 20, 1.0)
+                        camera.position = Vector3Scale(cameraPos, newDist / dist)
+                    }
+
+                    if IsKeyPressed(KEY_SPACE.rawValue) {
+                        isRunning = !isRunning
+                    }
+
+                    if !isRunning && IsKeyPressed(KEY_RIGHT.rawValue) {
+                        sim.step()
+                    }
+
+                    if !isRunning && IsKeyPressed(KEY_LEFT.rawValue) {
+                        sim.stepBack()
+                    }
+                }
+
+                BeginDrawing()
+                    ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
+
+                    BeginMode3D(camera)
+
+
+                        for i: Int in 0..<sim.grid.totalCellsCount {
+                            let state: Int = sim.grid.getCell(i) ?? 0
+                            let color: Color = colors[state]
+                            if color.a == 0 { 
+                                continue 
+                            }
+
+                            let coords: [Int] = sim.grid.coordinates(linearIndex: i)
+                            let x: Int = coords[0]
+                            let y: Int = coords[1]
+                            let z: Int = coords[2]
+
+                            DrawCube(Vector3(x: Float(x) * cellSize - cx, y: Float(y) * cellSize - cy, z: Float(z) * cellSize - cz), cellSize, cellSize, cellSize, color)
+                        }
+                    EndMode3D()
+
+                    if showMenu {
+                        let menuWidth: Float = Float(GetScreenWidth()) / 3
+                        GuiPanel(Rectangle(x: 0, y: 0, width: menuWidth, height: Float(GetScreenHeight())), "MENU")
+
+                        for i: Int in 0..<stateCount {
+                            let row: Int32 = 30 + Int32(i) * 30
+                            DrawRectangle(5, row, 20, 20, colors[i])
+
+                            if GuiButton(Rectangle(x: 30, y: Float(row), width: menuWidth - 40, height: 20), sim.stateNames[i]) != 0 {
+                                selectedColorPicker = selectedColorPicker == i ? -1 : i
+                            }
+                        }
+
+                        if selectedColorPicker >= 0 {
+                            let popupWidth: Float = 260
+                            let popupHeight: Float = 230
+                            let popupX: Float = (Float(GetScreenWidth()) - popupWidth) / 2
+                            let popupY: Float = (Float(GetScreenHeight()) - popupHeight) / 2
+
+                            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Color(r: 0, g: 0, b: 0, a: 60))
+                            if GuiWindowBox(Rectangle(x: popupX, y: popupY, width: popupWidth, height: popupHeight), sim.stateNames[selectedColorPicker]) == 1 {
+                                selectedColorPicker = -1
+                            }
+                            else {
+                                GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
+                                
+                                var isVisible: Bool = colors[selectedColorPicker].a > 0
+                                GuiCheckBox(Rectangle(x: popupX + 10, y: popupY + 170, width: 20, height: 20), "Visible", &isVisible)
+                                colors[selectedColorPicker].a = isVisible ? 255 : 0
+                            }
+                        }
+                        else {
+                            if IsMouseButtonPressed(MOUSE_BUTTON_LEFT.rawValue) && GetMouseX() > GetScreenWidth() / 3 {
+                                selectedColorPicker = -1
+                                showMenu = false
+                                isRunning = true
+                            }
+                        }
+                    }
+                    else {
+                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(ICON_BURGER_MENU.rawValue, "")) != 0 {
+                            showMenu = true
+                            isRunning = false
+                        }
+                    }
+                EndDrawing()
+
+                if isRunning {
+                    sim.step()
+                }
+            }
+            CloseWindow()\n
             """
         }
         else if neighborhoodType == "Hexagonal" {
@@ -575,7 +721,7 @@ struct SwiftGenerator {
                     sim.step()
                 }
             }
-            CloseWindow()
+            CloseWindow()\n
             """
         }
         else {
