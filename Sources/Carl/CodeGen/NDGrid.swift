@@ -2,11 +2,15 @@ import Foundation
 
 // # Adapted from Stack Overflow, response by @vacawama, accessed on 29.05.2026
 // # URL: https://stackoverflow.com/a/51448698
+//
+// Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
 /// Represents a multi-dimensional grid managing cellular automata states
 struct NDGrid {
     /// Configuration of offsets relative to a cell
     struct NeighborhoodOffset {
+        /// Linear index offset relative to the cell
         let linear: Int
+        /// Coordinate delta per dimension relative to the cell
         let coordDelta: [Int]
     }
 
@@ -28,16 +32,16 @@ struct NDGrid {
     /// Maximum number of cell states packable inside one 64-bit integer
     private var numCellsPerInt: Int
 
-    /// Type of neighborhood ("Moore" or "VonNeumann")
+    /// Type of neighborhood ("Moore", "VonNeumann" or "Hexagonal")
     private let neighborhoodType: String
 
     /// Neighborhood range
     private let range: Int
 
-    /// Array containing all offsets for local neighbors.
+    /// Array containing all offsets for local neighbors (moore or vonNeumann).
     private var standardNeighborsOffsets: [NeighborhoodOffset] = []
 
-    /// Linear offsets used for standard cells away from boundaries
+    /// Linear offsets used for standard cells away from boundaries (moore or vonNeumann).
     private var standardLinearOffsets: [Int] = []
 
     /// Lookup dictionary mapping a boundary cell's index to its unique neighborhood offset configuration index in `boundaryNeighborhoodConfigs`
@@ -46,11 +50,22 @@ struct NDGrid {
     /// Unique lists of relative offsets computed for boundary positions
     private var boundaryNeighborhoodConfigs: [[Int]] = []
 
+    ///////////////////////////////////////////////////////////////////////////////
+    /// Array containing all offsets for local neighbors for hexagonal cells on even rows
+    private var standardHexNeighborsOffsetsEven: [NeighborhoodOffset] = []
+    /// Array containing all offsets for local neighbors for hexagonal cells on odd rows
+    private var standardHexNeighborsOffsetsOdd: [NeighborhoodOffset] = []
+
+    /// Linear offsets for hexagonal neighbors on even rows
+    private var standardHexLinearOffsetsEven: [Int] = []
+    /// Linear offsets for hexagonal neighbors on odd rows
+    private var standardHexLinearOffsetsOdd: [Int] = []
+
     /// Initializes a multi-dimensional grid using bit-packed integer storage.
     /// 
     /// - Parameters:
     ///   - dimensions: Size of each grid axis
-    ///   - neighborhoodType: "Moore" or "VonNeumann"
+    ///   - neighborhoodType: "Moore", "VonNeumann" or "Hexagonal"
     ///   - range: Distance of neighborhood
     ///   - stateCount: Total possible cell states.
     init(dimensions: [Int], neighborhoodType: String, range: Int, stateCount: Int) {
@@ -70,15 +85,23 @@ struct NDGrid {
         // Length of the UInt64 array
         let allocationSize: Int = Int(ceil(Double(totalCellsCount) / Double(numCellsPerInt)))
         self.cells = Array(repeating: 0, count: allocationSize)
-
-        if neighborhoodType == "Moore" {
+        
+        if neighborhoodType == "Hexagonal" {
+            (self.standardHexNeighborsOffsetsEven, self.standardHexNeighborsOffsetsOdd) = getHexagonalOffset()
+            self.standardHexLinearOffsetsEven = standardHexNeighborsOffsetsEven.map({ $0.linear })
+            self.standardHexLinearOffsetsOdd = standardHexNeighborsOffsetsOdd.map({ $0.linear })
+            self.numNeighbors = standardHexLinearOffsetsEven.count
+        }
+        else if neighborhoodType == "Moore" {
             self.standardNeighborsOffsets = getMooreOffset()
+            self.standardLinearOffsets = standardNeighborsOffsets.map({ $0.linear })
+            self.numNeighbors = standardNeighborsOffsets.count
         }
         else {
             self.standardNeighborsOffsets = getVonNeumannOffset()
+            self.standardLinearOffsets = standardNeighborsOffsets.map({ $0.linear })
+            self.numNeighbors = standardNeighborsOffsets.count
         }
-        self.numNeighbors = standardNeighborsOffsets.count
-        self.standardLinearOffsets = standardNeighborsOffsets.map({ $0.linear })
 
         setBoundaryNeighbors()
     }
@@ -172,6 +195,13 @@ struct NDGrid {
         if let configIdx: Int = boundaryCellConfigIndices[idx] {
             return boundaryNeighborhoodConfigs[configIdx]
         }
+
+        if neighborhoodType == "Hexagonal" {
+            if idx / dimensions[1] % 2 == 0 {
+                return standardHexLinearOffsetsEven
+            }
+            return standardHexLinearOffsetsOdd
+        }
         return standardLinearOffsets
     }
 
@@ -183,8 +213,16 @@ struct NDGrid {
         let coords: [Int] = coordinates(linearIndex: idx)
         var res: [Int] = []
         var isValid: Bool = true
+        var offsets: [NeighborhoodOffset] = []
 
-        for offset: NeighborhoodOffset in standardNeighborsOffsets {
+        if neighborhoodType == "Hexagonal" {
+            offsets = coords[0] % 2 == 0 ? standardHexNeighborsOffsetsEven : standardHexNeighborsOffsetsOdd
+        }
+        else {
+            offsets = standardNeighborsOffsets
+        }
+
+        for offset: NeighborhoodOffset in offsets {
             for d: Int in 0..<dimensions.count {
                 let targetCoord: Int = coords[d] + offset.coordDelta[d]
 
@@ -294,6 +332,34 @@ struct NDGrid {
         return result
     }
 
+    /// Generates offsets for a hexagonal (odd-r) neighborhood
+    ///
+    /// - Returns: A tuple containing even-row and odd-row NeighborhoodOffset arrays
+    private func getHexagonalOffset() -> (even: [NeighborhoodOffset], odd: [NeighborhoodOffset]) {
+        let cols: Int = dimensions[1]
+
+        func getOffsets(even: Bool) -> [NeighborhoodOffset] {
+            var offsets: [NeighborhoodOffset] = []
+            let centerRow: Int = even ? 0 : 1
+            let centerHexAxial: (Int, Int) = coordToAxial(centerRow, 0)
+
+            for dq: Int in -range...range {
+                for dr: Int in -range...range {
+                    for ds: Int in -range...range {
+                        if dq + dr + ds == 0 {
+                            if dq != 0 || dr != 0 || ds != 0 {
+                                let coord: (Int, Int) = axialToCoord(centerHexAxial.0 + dq, centerHexAxial.1 + dr)
+                                offsets.append(NeighborhoodOffset(linear: (coord.0 - centerRow) * cols + coord.1, coordDelta: [coord.0 - centerRow, coord.1]))
+                            }
+                        }
+                    }
+                }
+            }
+            return offsets
+        }
+        return (getOffsets(even: true), getOffsets(even: false))
+    }
+
     /// Converts a linear array index into its multi-dimensional coordinate components
     /// 
     /// - Parameter linearIndex: Linear array index integer
@@ -312,4 +378,31 @@ struct NDGrid {
         }
         return coords
     }
+
+    /// Converts axial hex coordinates (q, r) to offset grid coordinates (row, col)
+    ///
+    /// - Parameters:
+    ///   - q: Axial coordinate
+    ///   - r: Axial coordinate
+    /// - Returns: A tuple (row, col) in offset grid space
+    private func axialToCoord(_ q: Int, _ r: Int) -> (Int, Int) {
+        let parity: Int = r & 1
+        let col: Int = q + (r - parity) / 2
+        let row: Int = r
+        return (row, col)
+    }
+
+    /// Converts offset grid coordinates (row, col) to axial hex coordinates (q, r)
+    ///
+    /// - Parameters:
+    ///   - row: Row in the offset grid
+    ///   - col: Column in the offset grid
+    /// - Returns: A tuple (q, r) in axial hex space
+    private func coordToAxial(_ row: Int, _ col: Int) -> (Int, Int) {
+        let parity: Int = row & 1
+        let q: Int = col - (row - parity) / 2
+        let r: Int = row
+        return (q, r)
+    }
+
 }

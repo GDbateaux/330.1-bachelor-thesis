@@ -7,7 +7,7 @@ struct SwiftGenerator {
     /// List of states
     private let states: [String]
 
-    /// Neighborhood type (Moore or VonNeumann)
+    /// Neighborhood type (Moore, VonNeumann or Hexagonal)
     private let neighborhoodType: String
 
     /// Neighborhood range
@@ -85,11 +85,15 @@ struct SwiftGenerator {
                 let keyElementsCount: Int = self.grid.numNeighbors + 1
                 let stateCount: Int = \(states.count)
                 let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
-                
-                let totalCombinations: Int = Int(pow(Double(stateCount), Double(keyElementsCount)))
-                let numTotalBits: Int = bitsPerState * (keyElementsCount)
+                let numTotalBits: Int = bitsPerState * keyElementsCount
 
-                if totalCombinations > 1000000 || numTotalBits > 64 {
+                if numTotalBits > 64 {
+                    return nil
+                }
+
+                let totalCombinations: Int = Int(pow(Double(stateCount), Double(keyElementsCount)))
+
+                if totalCombinations > 1000000 {
                     return nil
                 }
 
@@ -370,6 +374,208 @@ struct SwiftGenerator {
             var sim: Simulation = Simulation(dimensions: dims)
             print("Info: Rendering not available in \\(dims.count)D automaton.")
             sim.simulate()\n
+            """
+        }
+        else if neighborhoodType == "Hexagonal" {
+            // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
+            generatedCode += """
+            let dims: [Int] = \(Array(repeating: 200, count: dimension))
+            var isRunning: Bool = true
+            var sim: Simulation = Simulation(dimensions: dims)
+
+            let screenWidth: Int32 = 800;
+            let screenHeight: Int32 = screenWidth;
+
+            let gridW: Int = dims.count >= 2 ? dims[1] : dims[0]
+            let gridH: Int = dims.count >= 2 ? dims[0] : 1
+            let hexSize: Float = max(20.0, min(Float(screenWidth / Int32(gridW)), Float(screenHeight / Int32(gridH))))
+            let radius: Float = hexSize / sqrtf(3.0) // (2 / sqrtf(3.0)) * (hexSize / 2)
+
+            let stateCount: Int = \(states.count)
+            var colors: [Color] = []
+
+            var showMenu: Bool = false
+            var selectedColorPicker: Int = -1
+
+            for i: Int in 0..<stateCount {
+                switch i {
+                    case 0: colors.append(Color(r: 0, g: 0, b: 0, a: 255))
+                    case 1: colors.append(Color(r: 255, g: 255, b: 255, a: 255))
+                    default: colors.append(ColorFromHSV(Float(i - 2) * (360.0 / Float(stateCount - 2)), 0.8, 0.9))
+                }
+            }
+
+            // --- Hex helpers ---
+            // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
+            func axialToCoord(_ q: Int, _ r: Int) -> (Int, Int) {
+                let parity: Int = r & 1
+                let col: Int = q + (r - parity) / 2
+                let row: Int = r
+                return (col, row)
+            }
+
+            func axialRound(_ qFloat: Float, _ rFloat: Float) -> (Int, Int) {
+                let sFloat: Float = -qFloat - rFloat
+                var q: Float = round(qFloat)
+                var r: Float = round(rFloat)
+                let s: Float = round(sFloat)
+
+                let qDiff: Float = abs(q - qFloat)
+                let rDiff: Float = abs(r - rFloat)
+                let sdiff: Float = abs(s - sFloat)
+
+                if qDiff > rDiff && qDiff > sdiff {
+                    q = -r-s
+                }
+                else if rDiff > sdiff {
+                    r = -q-s
+                }
+                return (Int(q), Int(r))
+            }
+
+            func pixelToHexCoord(x: Float, y: Float) -> (Int, Int) {
+                let x: Float = x / radius
+                let y: Float = y / radius
+
+                let q: Float = (sqrt(3.0) / 3 * x  - 1.0 / 3.0 * y)
+                let r: Float = (2.0 / 3.0 * y)
+                let (roundQ, roundR) = axialRound(q, r)
+                return axialToCoord(roundQ, roundR)
+            }
+
+            // --- Display ---
+            SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
+            InitWindow(800, 800, "\(name)")
+            SetTargetFPS(30)
+            var camera: Camera2D = Camera2D(
+                offset: Vector2(x: 0, y: 0),
+                target: Vector2(x: 0, y: 0),
+                rotation: 0,
+                zoom: 1.0
+            )
+            GuiSetIconScale(3)
+
+            while !WindowShouldClose() {
+                if !showMenu {
+                    if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
+                        var delta: Vector2 = GetMouseDelta()
+                        delta = Vector2Scale(delta, -1.0/camera.zoom)
+                        camera.target = Vector2Add(camera.target, delta)
+                    }
+
+                    let wheel: Float = GetMouseWheelMove()
+                    if wheel != 0 {
+                        let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
+
+                        camera.offset = GetMousePosition()
+                        camera.target = mouseWorldPos
+
+                        let scale: Float = 0.2 * wheel
+                        camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
+                    }
+
+                    if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT.rawValue) {
+                        let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
+                        let (hexX, hexY) = pixelToHexCoord(x: mousePosition.x, y: mousePosition.y)
+
+                        if hexX >= 0 && hexX < gridW && hexY >= 0 && hexY < gridH {
+                            let i: Int = hexY * gridW + hexX
+                            let current: Int = sim.grid.getCell(i) ?? 0
+                            sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
+                        }
+                    }
+
+                    if IsKeyPressed(KEY_SPACE.rawValue) {
+                        isRunning = !isRunning
+                    }
+
+                    if !isRunning && IsKeyPressed(KEY_RIGHT.rawValue) {
+                        sim.step()
+                    }
+
+                    if !isRunning && IsKeyPressed(KEY_LEFT.rawValue) {
+                        sim.stepBack()
+                    }
+                }
+
+                BeginDrawing()
+                    ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
+
+                    BeginMode2D(camera)
+                        let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
+                        var x: Int = 0
+                        var y: Int = 0
+                        for i: Int in 0..<sim.grid.totalCellsCount {
+                            let state: Int = sim.grid.getCell(i) ?? 0
+                            let color: Color = colors[state]
+
+                            if y % 2 == 0 {
+                                DrawPoly(Vector2(x: Float(x) * hexSize, y: Float(y) * 1.5 * radius), 6, radius, 30, color)
+                            }
+                            else {
+                                DrawPoly(Vector2(x: Float(x) * hexSize + hexSize / 2, y: Float(y) * 1.5 * radius), 6, radius, 30, color)
+                            }
+
+                            x += 1
+                            if x % width == 0 && i != 0 {
+                                y += 1
+                                x = 0
+                            }
+                        }
+                    EndMode2D()
+
+                    if showMenu {
+                        let menuWidth: Float = Float(GetScreenWidth()) / 3
+                        GuiPanel(Rectangle(x: 0, y: 0, width: menuWidth, height: Float(GetScreenHeight())), "MENU")
+
+                        for i: Int in 0..<stateCount {
+                            let row: Int32 = 30 + Int32(i) * 30
+                            DrawRectangle(5, row, 20, 20, colors[i])
+
+                            if GuiButton(Rectangle(x: 30, y: Float(row), width: menuWidth - 40, height: 20), sim.stateNames[i]) != 0 {
+                                selectedColorPicker = selectedColorPicker == i ? -1 : i
+                            }
+                        }
+
+                        if selectedColorPicker >= 0 {
+                            let popupWidth: Float = 260
+                            let popupHeight: Float = 230
+                            let popupX: Float = (Float(GetScreenWidth()) - popupWidth) / 2
+                            let popupY: Float = (Float(GetScreenHeight()) - popupHeight) / 2
+
+                            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Color(r: 0, g: 0, b: 0, a: 60))
+                            if GuiWindowBox(Rectangle(x: popupX, y: popupY, width: popupWidth, height: popupHeight), sim.stateNames[selectedColorPicker]) == 1 {
+                                selectedColorPicker = -1
+                            }
+                            else {
+                                GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
+                                
+                                var alphaVal: Float = Float(colors[selectedColorPicker].a) / 255.0
+                                GuiColorBarAlpha(Rectangle(x: popupX + 10, y: popupY + 170, width: popupWidth - 40, height: 20), "", &alphaVal)
+                                colors[selectedColorPicker].a = UInt8(alphaVal * 255.0)
+                            }
+                        }
+                        else {
+                            if IsMouseButtonPressed(MOUSE_BUTTON_LEFT.rawValue) && GetMouseX() > GetScreenWidth() / 3 {
+                                selectedColorPicker = -1
+                                showMenu = false
+                                isRunning = true
+                            }
+                        }
+                    }
+                    else {
+                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(ICON_BURGER_MENU.rawValue, "")) != 0 {
+                            showMenu = true
+                            isRunning = false
+                        }
+                    }
+                EndDrawing()
+
+                if isRunning {
+                    sim.step()
+                }
+            }
+            CloseWindow()
             """
         }
         else {
