@@ -85,11 +85,15 @@ struct SwiftGenerator {
                 let keyElementsCount: Int = self.grid.numNeighbors + 1
                 let stateCount: Int = \(states.count)
                 let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
-                
-                let totalCombinations: Int = Int(pow(Double(stateCount), Double(keyElementsCount)))
-                let numTotalBits: Int = bitsPerState * (keyElementsCount)
+                let numTotalBits: Int = bitsPerState * keyElementsCount
 
-                if totalCombinations > 1000000 || numTotalBits > 64 {
+                if numTotalBits > 64 {
+                    return nil
+                }
+
+                let totalCombinations: Int = Int(pow(Double(stateCount), Double(keyElementsCount)))
+
+                if totalCombinations > 1000000 {
                     return nil
                 }
 
@@ -373,6 +377,7 @@ struct SwiftGenerator {
             """
         }
         else if neighborhoodType == "Hexagonal" {
+            // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
             generatedCode += """
             let dims: [Int] = \(Array(repeating: 200, count: dimension))
             var isRunning: Bool = true
