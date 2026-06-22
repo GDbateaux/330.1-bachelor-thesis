@@ -348,13 +348,6 @@ struct NDGrid {
             }
             return res
         }
-
-        func deltaToAxial(_ delta: (Int,Int)) -> (Int, Int) {
-            let parity: Int = delta.0 & 1
-            let q: Int = delta.1 - (delta.0 - parity) / 2
-            let r: Int = delta.0
-            return (q, r)
-        }
         return (even: getNeighborhoodOffset(evenDeltas), odd: getNeighborhoodOffset(oddDeltas))
     }
 
