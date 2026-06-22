@@ -1,1 +1,1 @@
-Semantic error: Unknown neighborhood type 'Unknown'. Expected 'Moore' or 'VonNeumann'.
+Semantic error: Unknown neighborhood type 'Unknown'. Expected 'Moore', 'VonNeumann' or 'Hexagonal'.
