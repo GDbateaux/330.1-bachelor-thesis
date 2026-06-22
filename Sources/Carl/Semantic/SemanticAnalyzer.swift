@@ -23,10 +23,15 @@ struct SemanticAnalyzer {
     /// Validates the neighborhood type and range parameters.
     private func verifyNeighborhood() throws {
         let neighborhoodStr: String = AST.world.neighborhood.type
+        let dimension: Int = AST.world.dimension
         let range: Int = AST.world.neighborhood.range
 
-        if neighborhoodStr != "VonNeumann" && neighborhoodStr != "Moore" {
-            throw CompilerError.semanticError(message: "Unknown neighborhood type '\(neighborhoodStr)'. Expected 'Moore' or 'VonNeumann'.")
+        if neighborhoodStr != "VonNeumann" && neighborhoodStr != "Moore" && neighborhoodStr != "Hexagonal" {
+            throw CompilerError.semanticError(message: "Unknown neighborhood type '\(neighborhoodStr)'. Expected 'Moore', 'VonNeumann' or 'Hexagonal'.")
+        }
+
+        if neighborhoodStr == "Hexagonal" && dimension != 2 {
+            throw CompilerError.semanticError(message: "Hexagonal neighborhood is only valid in 2D.")
         }
 
         if range <= 0 {

@@ -12,24 +12,32 @@ struct Carl {
             source = try String(contentsOfFile: path, encoding: .utf8)
         } else {
             source = """
-            automaton ForestFire {
+            automaton ExcitableMedium {
                 world {
                     states {
-                        Fire,
-                        Tree,
-                        Empty,
-                        Ash
+                        Quiescent,
+                        Excited,
+                        Refractory1,
+                        Refractory2,
+                        Refractory3,
+                        Refractory4,
+                        Refractory5,
+                        Refractory6
                     }
-                    neighborhood: VonNeumann(1)
+                    neighborhood: Moore(1)
                     dimension: 2
                 }
-                
+
+
                 rules {
-                    Fire -> Ash
-                    Tree -> Fire when count_neighbors(Fire) > 0
-                    Tree -> Fire with prob 0.01
-                    Ash -> Empty when count_neighbors(Fire) == 0
-                    Empty -> Tree with prob 0.01
+                    Quiescent -> Excited when count_neighbors(Excited) > 0
+                    Excited -> Refractory1
+                    Refractory1 -> Refractory2
+                    Refractory2 -> Refractory3
+                    Refractory3 -> Refractory4
+                    Refractory4 -> Refractory5
+                    Refractory5 -> Refractory6
+                    Refractory6 -> Quiescent
                 }
             }
             """

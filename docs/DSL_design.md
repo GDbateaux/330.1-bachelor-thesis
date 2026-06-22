@@ -8,7 +8,7 @@ Every program is contained in an **automaton block** (`automaton CellularAutomat
 
    This block defines the world properties :
    - `states`: A list of states that a cell can hold.
-   - `neighborhood`: The proximity model used to calculate a cell's neighbors (`Moore` or `VonNeumann`), followed by its radius in parentheses (e.g. `Moore(1)`).
+   - `neighborhood`: The proximity model used to calculate a cell's neighbors (`Moore`, `VonNeumann` or `Hexagonal`), followed by its radius in parentheses (e.g. `Moore(1)`).
    - `dimension`: A number to specify the dimensionality of the grid.
 
 ### Rules block (`rules { ... }`)
@@ -150,7 +150,7 @@ world_element = states_def | neighborhood_def | dimension_def ;
 
 states_def = "states" "{" identifier { "," identifier } "}" ;
 neighborhood_def = "neighborhood" ":"  neighborhood_type "(" integer ")" ;
-neighborhood_type = "Moore" | "VonNeumann" ;
+neighborhood_type = "Moore" | "VonNeumann" | "Hexagonal" ;
 dimension_def = "dimension" ":" integer ;
 
 (*rules*)

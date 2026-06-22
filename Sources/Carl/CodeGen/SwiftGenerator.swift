@@ -7,7 +7,7 @@ struct SwiftGenerator {
     /// List of states
     private let states: [String]
 
-    /// Neighborhood type (Moore or VonNeumann)
+    /// Neighborhood type (Moore, VonNeumann or Hexagonal)
     private let neighborhoodType: String
 
     /// Neighborhood range
