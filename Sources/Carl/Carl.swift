@@ -1,60 +1,225 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
 import Foundation
+import ArgumentParser
 
+// Parts of this file were developed with the help of an AI assistant.
 @main
-struct Carl {
-    static func main() throws {
-        var source: String = ""
-        
-        if CommandLine.arguments.count == 2 {
-            let path: String = CommandLine.arguments[1]
-            source = try String(contentsOfFile: path, encoding: .utf8)
-        } else {
-            source = """
-            automaton ExcitableMedium {
-                world {
-                    states {
-                        Quiescent,
-                        Excited,
-                        Refractory1,
-                        Refractory2,
-                        Refractory3,
-                        Refractory4,
-                        Refractory5,
-                        Refractory6
-                    }
-                    neighborhood: Moore(1)
-                    dimension: 2
-                }
+struct Carl: ParsableCommand {
+    /// The input file passed to the command.
+    @Argument(help: "Carl source file.")
+    var sourceFile: String
 
-                initial {
-                    Excited: 1
-                }
+    /// The output executable path.
+    @Option(name: .shortAndLong, help: "Output executable path.")
+    var output: String
 
-                rules {
-                    Quiescent -> Excited when count_neighbors(Excited) > 0
-                    Excited -> Refractory1
-                    Refractory1 -> Refractory2
-                    Refractory2 -> Refractory3
-                    Refractory3 -> Refractory4
-                    Refractory4 -> Refractory5
-                    Refractory5 -> Refractory6
-                    Refractory6 -> Quiescent
-                }
-            }
-            """
-        }
-        let compiler: Compiler = Compiler(source: source)
+    /// True if the cache directory should be deleted before building else false
+    @Flag(help: "Clean the build cache and rebuild from scratch.")
+    var clean: Bool = false
+
+    /// Run the command.
+    mutating func run() throws {
+        let sourceCode: String = try getSourceCode(sourceFile: sourceFile)
+        let compiler: Compiler = Compiler(source: sourceCode)
+
+        let generatedCode: String = try compiler.compile()
+        let buildDir: URL = carlBuildDirectory()
+
         do {
-            let generated: String = try compiler.compile()
+            // Generate flder structure
+            if clean && FileManager.default.fileExists(atPath: buildDir.path) {
+                try FileManager.default.removeItem(at: buildDir)
+            }
+            try FileManager.default.createDirectory(at: buildDir, withIntermediateDirectories: true)
 
-            let url: URL = URL(fileURLWithPath: "Sources/Display/main.swift")
-            try generated.write(to: url, atomically: true, encoding: .utf8)
-            print("Generated Sources/Display/main.swift")
+            let sourcesDir: URL = buildDir.appending(component: "Sources")
+            let generatedDir: URL = sourcesDir.appending(component: "Generated")
+            try FileManager.default.createDirectory(at: generatedDir, withIntermediateDirectories: true)
+
+            let mainSwift: URL = generatedDir.appending(component: "main.swift")
+            try generatedCode.write(to: mainSwift, atomically: true, encoding: .utf8)
+
+            let cRaylibDir: URL = sourcesDir.appending(component: "CRaylib")
+            if !FileManager.default.fileExists(atPath: cRaylibDir.path) {
+                try copyCRaylibSources(to: cRaylibDir)
+            }
+
+            let packageSwift: URL = buildDir.appending(component: "Package.swift")
+            if !FileManager.default.fileExists(atPath: packageSwift.path) {
+                try generatePackageSwiftContents().write(to: packageSwift, atomically: true, encoding: .utf8)
+            }
+
+            // Find swift executable and build
+            guard let swiftURL: URL = findSwiftExecutable() else {
+                throw ValidationError("swift command not found in PATH. Install Swift: https://www.swift.org/install/")
+            }
+            try runSwiftBuild(swiftURL: swiftURL, packagePath: buildDir)
+
+            // Cop the executable to the output
+            let releaseDir: URL = buildDir.appending(components: ".build", "release")
+            let executableName: String = "Generated" + (isWindows() ? ".exe" : "")
+            let builtExecutable: URL = releaseDir.appending(component: executableName)
+
+            let outputURL: URL = URL(fileURLWithPath: output)
+            if FileManager.default.fileExists(atPath: outputURL.path) {
+                try FileManager.default.removeItem(at: outputURL)
+            }
+            try FileManager.default.copyItem(at: builtExecutable, to: outputURL)
+
+            print("Executable generated at: \(outputURL.path)")
         }
         catch {
-            print(error.localizedDescription)
+            print("Error: \(error.localizedDescription)")
+            print("Build directory kept at: \(buildDir.path)")
+            print("Use --clean to force a full rebuild.")
+            throw error
         }
+    }
+
+    /// Get the Carl build directory
+    /// 
+    /// - Returns: The URL of the Carl build directory
+    private func carlBuildDirectory() -> URL {
+        return FileManager.default.homeDirectoryForCurrentUser.appending(components: ".carl", "build")
+    }
+
+    /// Find the swift executable and return the URL
+    /// 
+    /// - Returns: The URL of the swift executable if exists else nil
+    private func findSwiftExecutable() -> URL? {
+        let candidates: [String] = isWindows() ? ["swift.exe", "swift"] : ["swift"]
+        for name: String in candidates {
+            if let url: URL = findInPATH(name) {
+                return url
+            }
+        }
+        return nil
+    }
+
+    /// Searches for an executable in each directory listed in the PATH
+    ///
+    /// - Parameter name: The executable name to search for
+    /// - Returns: The full URL of the executable if found, or nil
+    private func findInPATH(_ name: String) -> URL? {
+        let environmentVariables: [String: String] = ProcessInfo.processInfo.environment
+        let PATH: String = environmentVariables.first(where: { $0.key.lowercased() == "path" })?.value ?? ""
+        let separator: Character = isWindows() ? ";" : ":"
+
+        for dir: String.SubSequence in PATH.split(separator: separator) {
+            let dir: String = dir.trimmingCharacters(in: CharacterSet.whitespaces)
+            if dir.isEmpty { 
+                continue
+            }
+
+            let url: URL = URL(fileURLWithPath: dir).appending(component: name)
+            if FileManager.default.fileExists(atPath: url.path) {
+                return url
+            }
+        }
+        return nil
+    }
+
+    /// - Returns: true if the os is Windows else false
+    private func isWindows() -> Bool {
+        #if os(Windows)
+            return true
+        #else
+            return false
+        #endif
+    }
+
+    /// Copy the CRaylib files to the destination UTL
+    /// 
+    /// - Parameter destination: The URL where the CRaylib is copied
+    private func copyCRaylibSources(to destination: URL) throws {
+        let carlSwiftURL: URL = URL(fileURLWithPath: #filePath)
+        let projectSources: URL = carlSwiftURL.deletingLastPathComponent().deletingLastPathComponent()
+        let cRaylibSource: URL = projectSources.appending(component: "CRaylib")
+
+        guard FileManager.default.fileExists(atPath: cRaylibSource.path) else {
+            throw ValidationError("CRaylib sources not found at \(cRaylibSource.path).")
+        }
+
+        try FileManager.default.copyItem(at: cRaylibSource, to: destination)
+    }
+
+    /// Generate the package.swift contents
+    /// 
+    /// - Returns: The generated code
+    private func generatePackageSwiftContents() -> String {
+        return """
+        // swift-tools-version: 6.3
+        import PackageDescription
+
+        let package = Package(
+            name: "GeneratedAutomaton",
+            targets: [
+                .target(
+                    name: "CRaylib",
+                    path: "Sources/CRaylib",
+                    sources: [
+                        "rcore.c",
+                        "rshapes.c",
+                        "rtextures.c",
+                        "rtext.c",
+                        "rmodels.c",
+                        "raygui.c",
+                    ],
+                    publicHeadersPath: ".",
+                    cSettings: [
+                        .define("PLATFORM_DESKTOP_RGFW"),
+                        .define("GRAPHICS_API_OPENGL_33"),
+                        .define("_CRT_SECURE_NO_WARNINGS"),
+                    ],
+                    linkerSettings: [
+                        .linkedLibrary("winmm"),
+                        .linkedLibrary("gdi32"),
+                        .linkedLibrary("opengl32"),
+                    ]
+                ),
+                .executableTarget(
+                    name: "Generated",
+                    dependencies: ["CRaylib"]
+                ),
+            ],
+            swiftLanguageModes: [.v6]
+        )
+        """
+    }
+
+    /// Builds the generated Swift package in release mode
+    ///
+    /// - Parameters:
+    ///   - swiftURL: The URL to the swift executable.
+    ///   - packagePath: The directory containing the Package.swift to build.
+    private func runSwiftBuild(swiftURL: URL, packagePath: URL) throws {
+        let process: Process = Process()
+        process.executableURL = swiftURL
+        process.currentDirectoryURL = packagePath
+        process.arguments = ["build", "-c", "release"]
+        process.standardOutput = FileHandle.standardOutput
+        process.standardError = FileHandle.standardError
+
+        try process.run()
+        process.waitUntilExit()
+
+        if process.terminationStatus != 0 {
+            throw ValidationError("Swift build failed with exit code \(process.terminationStatus).")
+        }
+    }
+
+    /// Get the source code of the carl file from the sourceFile.
+    /// 
+    /// - Parameter sourceFile: The source file string to be read
+    /// - Returns: The source code of the file
+    private func getSourceCode(sourceFile: String) throws -> String {
+        let sourceURL: URL = URL(filePath: sourceFile)
+        guard sourceURL.pathExtension == "carl" else {
+            throw ValidationError("Source file must have a .carl extension: \(sourceURL.path)")
+        }
+
+        guard FileManager.default.fileExists(atPath: sourceURL.path) else {
+            throw ValidationError("Source file not found: \(sourceURL.path)")
+        }
+        return try String(contentsOf: sourceURL, encoding: .utf8)
     }
 }
