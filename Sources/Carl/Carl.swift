@@ -32,19 +32,19 @@ struct Carl: ParsableCommand {
             }
             try FileManager.default.createDirectory(at: buildDir, withIntermediateDirectories: true)
 
-            let sourcesDir: URL = buildDir.appending(component: "Sources")
-            let generatedDir: URL = sourcesDir.appending(component: "Generated")
+            let sourcesDir: URL = buildDir.appendingPathComponent("Sources")
+            let generatedDir: URL = sourcesDir.appendingPathComponent("Generated")
             try FileManager.default.createDirectory(at: generatedDir, withIntermediateDirectories: true)
 
-            let mainSwift: URL = generatedDir.appending(component: "main.swift")
+            let mainSwift: URL = generatedDir.appendingPathComponent("main.swift")
             try generatedCode.write(to: mainSwift, atomically: true, encoding: .utf8)
 
-            let cRaylibDir: URL = sourcesDir.appending(component: "CRaylib")
+            let cRaylibDir: URL = sourcesDir.appendingPathComponent("CRaylib")
             if !FileManager.default.fileExists(atPath: cRaylibDir.path) {
                 try copyCRaylibSources(to: cRaylibDir)
             }
 
-            let packageSwift: URL = buildDir.appending(component: "Package.swift")
+            let packageSwift: URL = buildDir.appendingPathComponent("Package.swift")
             if !FileManager.default.fileExists(atPath: packageSwift.path) {
                 try generatePackageSwiftContents().write(to: packageSwift, atomically: true, encoding: .utf8)
             }
@@ -56,9 +56,9 @@ struct Carl: ParsableCommand {
             try runSwiftBuild(swiftURL: swiftURL, packagePath: buildDir)
 
             // Copy the executable to the output
-            let releaseDir: URL = buildDir.appending(components: ".build", "release")
+            let releaseDir: URL = buildDir.appendingPathComponent(".build").appendingPathComponent("release")
             let executableName: String = "Generated" + (isWindows() ? ".exe" : "")
-            let builtExecutable: URL = releaseDir.appending(component: executableName)
+            let builtExecutable: URL = releaseDir.appendingPathComponent(executableName)
 
             let outputURL: URL = URL(fileURLWithPath: output)
             if FileManager.default.fileExists(atPath: outputURL.path) {
@@ -80,7 +80,7 @@ struct Carl: ParsableCommand {
     /// 
     /// - Returns: The URL of the Carl build directory
     private func carlBuildDirectory() -> URL {
-        return FileManager.default.homeDirectoryForCurrentUser.appending(components: ".carl", "build")
+        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".carl").appendingPathComponent( "build")
     }
 
     /// Find the swift executable and return the URL
@@ -111,7 +111,7 @@ struct Carl: ParsableCommand {
                 continue
             }
 
-            let url: URL = URL(fileURLWithPath: dir).appending(component: name)
+            let url: URL = URL(fileURLWithPath: dir).appendingPathComponent(name)
             if FileManager.default.fileExists(atPath: url.path) {
                 return url
             }
@@ -134,7 +134,7 @@ struct Carl: ParsableCommand {
     private func copyCRaylibSources(to destination: URL) throws {
         let carlSwiftURL: URL = URL(fileURLWithPath: #filePath)
         let projectSources: URL = carlSwiftURL.deletingLastPathComponent().deletingLastPathComponent()
-        let cRaylibSource: URL = projectSources.appending(component: "CRaylib")
+        let cRaylibSource: URL = projectSources.appendingPathComponent("CRaylib")
 
         guard FileManager.default.fileExists(atPath: cRaylibSource.path) else {
             throw ValidationError("CRaylib sources not found at \(cRaylibSource.path).")
@@ -213,7 +213,7 @@ struct Carl: ParsableCommand {
     /// - Parameter sourceFile: The source file string to be read
     /// - Returns: The source code of the file
     private func getSourceCode(sourceFile: String) throws -> String {
-        let sourceURL: URL = URL(filePath: sourceFile)
+        let sourceURL: URL = URL(fileURLWithPath: sourceFile)
         guard sourceURL.pathExtension == "carl" else {
             throw ValidationError("Source file must have a .carl extension: \(sourceURL.path)")
         }
