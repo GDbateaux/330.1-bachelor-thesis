@@ -1,0 +1,16 @@
+name: Swift
+
+on: push
+
+jobs:
+  build:
+    name: Swift on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: swift-actions/setup-swift@v3
+      - name: Compile Carl file
+        run: swift run Carl Tests/CarlTests/CompilerTests/positive/game-of-life.carl -o game-of-life

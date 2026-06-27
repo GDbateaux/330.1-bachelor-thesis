@@ -1,7 +1,8 @@
 import Foundation
 import ArgumentParser
 
-// Parts of this file were developed with the help of an AI assistant.
+
+// Parts of this file were developed with the assistance of an LLM
 @main
 struct Carl: ParsableCommand {
     /// The input file passed to the command.
@@ -25,7 +26,7 @@ struct Carl: ParsableCommand {
         let buildDir: URL = carlBuildDirectory()
 
         do {
-            // Generate flder structure
+            // Generate folder structure
             if clean && FileManager.default.fileExists(atPath: buildDir.path) {
                 try FileManager.default.removeItem(at: buildDir)
             }
@@ -54,7 +55,7 @@ struct Carl: ParsableCommand {
             }
             try runSwiftBuild(swiftURL: swiftURL, packagePath: buildDir)
 
-            // Cop the executable to the output
+            // Copy the executable to the output
             let releaseDir: URL = buildDir.appending(components: ".build", "release")
             let executableName: String = "Generated" + (isWindows() ? ".exe" : "")
             let builtExecutable: URL = releaseDir.appending(component: executableName)
@@ -127,7 +128,7 @@ struct Carl: ParsableCommand {
         #endif
     }
 
-    /// Copy the CRaylib files to the destination UTL
+    /// Copy the CRaylib files to the destination URL
     /// 
     /// - Parameter destination: The URL where the CRaylib is copied
     private func copyCRaylibSources(to destination: URL) throws {
