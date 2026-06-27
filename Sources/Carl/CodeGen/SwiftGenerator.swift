@@ -468,7 +468,7 @@ struct SwiftGenerator {
                 target: Vector3(x: 0, y: 0, z: 0),
                 up: Vector3(x: 0, y: 1, z: 0),
                 fovy: 45,
-                projection : CAMERA_PERSPECTIVE.rawValue
+                projection : Int32(CAMERA_PERSPECTIVE.rawValue)
             )
 
             let gridContentW: Float = Float(gridW) * layerCellSize
@@ -487,20 +487,20 @@ struct SwiftGenerator {
 
             while !WindowShouldClose() {
                 if !showMenu {
-                    if IsKeyPressed(KEY_E.rawValue) {
+                    if IsKeyPressed(Int32(KEY_E.rawValue)) {
                         editionMode = !editionMode
                         isRunning = false
                     }
 
                     if editionMode {
-                        if IsKeyPressed(KEY_UP.rawValue) {
+                        if IsKeyPressed(Int32(KEY_UP.rawValue)) {
                             editingLayer = min(editingLayer + 1, gridD - 1)
                         }
-                        if IsKeyPressed(KEY_DOWN.rawValue) {
+                        if IsKeyPressed(Int32(KEY_DOWN.rawValue)) {
                             editingLayer = max(editingLayer - 1, 0)
                         }
 
-                        if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
+                        if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
                             var delta: Vector2 = GetMouseDelta()
                             delta = Vector2Scale(delta, -1.0/editCamera.zoom)
                             editCamera.target = Vector2Add(editCamera.target, delta)
@@ -517,7 +517,7 @@ struct SwiftGenerator {
                             editCamera.zoom = Clamp(expf(logf(editCamera.zoom)+scale), 0.125, 64.0)
                         }
 
-                        if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT.rawValue) {
+                        if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
                             let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), editCamera)
 
                             let cellX: Int = Int(floor(mousePosition.x / layerCellSize))
@@ -531,8 +531,8 @@ struct SwiftGenerator {
                         }
                     }
                     else {
-                        if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
-                            UpdateCamera(&camera, CAMERA_THIRD_PERSON.rawValue);
+                        if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
+                            UpdateCamera(&camera, Int32(CAMERA_THIRD_PERSON.rawValue));
                         }
 
                         let wheel: Float = GetMouseWheelMove()
@@ -543,16 +543,16 @@ struct SwiftGenerator {
                             camera.position = Vector3Scale(cameraPos, newDist / dist)
                         }
 
-                        if IsKeyPressed(KEY_SPACE.rawValue) {
+                        if IsKeyPressed(Int32(KEY_SPACE.rawValue)) {
                             isRunning = !isRunning
                         }
                     }
 
-                    if !isRunning && IsKeyPressed(KEY_RIGHT.rawValue) {
+                    if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
                         sim.step()
                     }
 
-                    if !isRunning && IsKeyPressed(KEY_LEFT.rawValue) {
+                    if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
                         sim.stepBack()
                     }
                 }
@@ -627,14 +627,14 @@ struct SwiftGenerator {
                             }
                         }
                         else{
-                            if IsMouseButtonPressed(MOUSE_BUTTON_LEFT.rawValue) && GetMouseX() > GetScreenWidth() / 3 {
+                            if IsMouseButtonPressed(Int32(MOUSE_BUTTON_LEFT.rawValue)) && GetMouseX() > GetScreenWidth() / 3 {
                                 selectedColorPicker = -1
                                 showMenu = false
                             }
                         } 
                     }
                     else {
-                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(ICON_BURGER_MENU.rawValue, "")) != 0 {
+                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(Int32(ICON_BURGER_MENU.rawValue), "")) != 0 {
                             showMenu = true
                             isRunning = false
                         }
@@ -733,7 +733,7 @@ struct SwiftGenerator {
 
             while !WindowShouldClose() {
                 if !showMenu {
-                    if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
+                    if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
                         var delta: Vector2 = GetMouseDelta()
                         delta = Vector2Scale(delta, -1.0/camera.zoom)
                         camera.target = Vector2Add(camera.target, delta)
@@ -750,7 +750,7 @@ struct SwiftGenerator {
                         camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
                     }
 
-                    if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT.rawValue) {
+                    if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
                         let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
                         let (hexX, hexY) = pixelToHexCoord(x: mousePosition.x, y: mousePosition.y)
 
@@ -761,15 +761,15 @@ struct SwiftGenerator {
                         }
                     }
 
-                    if IsKeyPressed(KEY_SPACE.rawValue) {
+                    if IsKeyPressed(Int32(KEY_SPACE.rawValue)) {
                         isRunning = !isRunning
                     }
 
-                    if !isRunning && IsKeyPressed(KEY_RIGHT.rawValue) {
+                    if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
                         sim.step()
                     }
 
-                    if !isRunning && IsKeyPressed(KEY_LEFT.rawValue) {
+                    if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
                         sim.stepBack()
                     }
                 }
@@ -832,7 +832,7 @@ struct SwiftGenerator {
                             }
                         }
                         else {
-                            if IsMouseButtonPressed(MOUSE_BUTTON_LEFT.rawValue) && GetMouseX() > GetScreenWidth() / 3 {
+                            if IsMouseButtonPressed(Int32(MOUSE_BUTTON_LEFT.rawValue)) && GetMouseX() > GetScreenWidth() / 3 {
                                 selectedColorPicker = -1
                                 showMenu = false
                                 isRunning = true
@@ -840,7 +840,7 @@ struct SwiftGenerator {
                         }
                     }
                     else {
-                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(ICON_BURGER_MENU.rawValue, "")) != 0 {
+                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(Int32(ICON_BURGER_MENU.rawValue), "")) != 0 {
                             showMenu = true
                             isRunning = false
                         }
@@ -900,7 +900,7 @@ struct SwiftGenerator {
 
             while !WindowShouldClose() {
                 if !showMenu {
-                    if IsMouseButtonDown(MOUSE_BUTTON_LEFT.rawValue) {
+                    if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
                         var delta: Vector2 = GetMouseDelta()
                         delta = Vector2Scale(delta, -1.0/camera.zoom)
                         camera.target = Vector2Add(camera.target, delta)
@@ -917,7 +917,7 @@ struct SwiftGenerator {
                         camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
                     }
 
-                    if IsMouseButtonPressed(MOUSE_BUTTON_RIGHT.rawValue) {
+                    if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
                         let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
 
                         let cellX: Int = Int(floor(mousePosition.x / Float(cellSize)))
@@ -930,15 +930,15 @@ struct SwiftGenerator {
                         }
                     }
 
-                    if IsKeyPressed(KEY_SPACE.rawValue) {
+                    if IsKeyPressed(Int32(KEY_SPACE.rawValue)) {
                         isRunning = !isRunning
                     }
 
-                    if !isRunning && IsKeyPressed(KEY_RIGHT.rawValue) {
+                    if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
                         sim.step()
                     }
 
-                    if !isRunning && IsKeyPressed(KEY_LEFT.rawValue) {
+                    if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
                         sim.stepBack()
                     }
                 }
@@ -994,7 +994,7 @@ struct SwiftGenerator {
                             }
                         }
                         else {
-                            if IsMouseButtonPressed(MOUSE_BUTTON_LEFT.rawValue) && GetMouseX() > GetScreenWidth() / 3 {
+                            if IsMouseButtonPressed(Int32(MOUSE_BUTTON_LEFT.rawValue)) && GetMouseX() > GetScreenWidth() / 3 {
                                 selectedColorPicker = -1
                                 showMenu = false
                                 isRunning = true
@@ -1002,7 +1002,7 @@ struct SwiftGenerator {
                         }
                     }
                     else {
-                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(ICON_BURGER_MENU.rawValue, "")) != 0 {
+                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(Int32(ICON_BURGER_MENU.rawValue), "")) != 0 {
                             showMenu = true
                             isRunning = false
                         }
