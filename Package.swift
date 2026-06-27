@@ -28,9 +28,21 @@ let package = Package(
                 .define("_CRT_SECURE_NO_WARNINGS"),
             ],
             linkerSettings: [
-                .linkedLibrary("winmm"),
-                .linkedLibrary("gdi32"),
-                .linkedLibrary("opengl32"),
+                .linkedLibrary("winmm", .when(platforms: [.windows])),
+                .linkedLibrary("gdi32", .when(platforms: [.windows])),
+                .linkedLibrary("opengl32", .when(platforms: [.windows])),
+
+                .linkedFramework("Cocoa", .when(platforms: [.macOS])),
+                .linkedFramework("OpenGL", .when(platforms: [.macOS])),
+                .linkedFramework("IOKit", .when(platforms: [.macOS])),
+                .linkedFramework("CoreVideo", .when(platforms: [.macOS])),
+
+                .linkedLibrary("X11", .when(platforms: [.linux])),
+                .linkedLibrary("Xrandr", .when(platforms: [.linux])),
+                .linkedLibrary("Xcursor", .when(platforms: [.linux])),
+                .linkedLibrary("Xi", .when(platforms: [.linux])),
+                .linkedLibrary("Xinerama", .when(platforms: [.linux])),
+                .linkedLibrary("GL", .when(platforms: [.linux])),
             ]
         ),
         .executableTarget(
