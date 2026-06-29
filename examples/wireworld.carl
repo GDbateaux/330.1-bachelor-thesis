@@ -1,0 +1,18 @@
+automaton Wireworld {
+    world {
+        states {
+            Empty,
+            ElectronHead,
+            ElectronTail,
+            Conductor
+        }
+        neighborhood: Moore(1)
+        dimension: 2
+    }
+
+    rules {
+        ElectronHead -> ElectronTail
+        ElectronTail -> Conductor
+        Conductor -> ElectronHead when #ElectronHead == 1 or #ElectronHead == 2
+    }
+}
