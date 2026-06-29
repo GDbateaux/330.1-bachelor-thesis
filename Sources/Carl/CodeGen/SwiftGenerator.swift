@@ -420,11 +420,13 @@ struct SwiftGenerator {
                 projection : CAMERA_PERSPECTIVE.rawValue
             )
 
+            let gridContentW: Float = Float(gridW) * layerCellSize
+            let gridContentH: Float = Float(gridH) * layerCellSize
             var editCamera: Camera2D = Camera2D(
-                offset: Vector2(x: 0, y: 0),
-                target: Vector2(x: 0, y: 0),
+                offset: Vector2(x: Float(screenWidth) / 2, y: Float(screenHeight) / 2),
+                target: Vector2(x: gridContentW / 2, y: gridContentH / 2),
                 rotation: 0,
-                zoom: 1
+                zoom: 0.96
             )
             GuiSetIconScale(3)
 
@@ -521,6 +523,7 @@ struct SwiftGenerator {
                                 }
                             }
                         EndMode2D()
+                        DrawText("Layer: \\(editingLayer + 1)/\\(gridD)  (UP/DOWN)", 70, 15, 20, Color(r: 255, g: 255, b: 255, a: 255))
                     }
                     else {
                         BeginMode3D(camera)
