@@ -364,7 +364,7 @@ struct NDGrid {
     /// 
     /// - Parameter linearIndex: Linear array index integer
     /// - Returns:  An array containing coordinates for each specific axis
-    private func coordinates(linearIndex: Int) -> [Int] {
+    func coordinates(linearIndex: Int) -> [Int] {
         guard linearIndex >= 0 && linearIndex < totalCellsCount else {
             fatalError("Linear index out of range")
         }
