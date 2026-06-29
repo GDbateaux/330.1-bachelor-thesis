@@ -639,6 +639,7 @@ struct SwiftGenerator {
                             isRunning = false
                         }
                     }
+                    DrawFPS(GetScreenWidth() - 110, 10)
                 EndDrawing()
 
                 if isRunning {
@@ -776,6 +777,7 @@ struct SwiftGenerator {
 
                 BeginDrawing()
                     ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
+                    DrawFPS(GetScreenWidth() - 110, 10)
 
                     BeginMode2D(camera)
                         let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
@@ -845,6 +847,7 @@ struct SwiftGenerator {
                             isRunning = false
                         }
                     }
+                    DrawFPS(GetScreenWidth() - 110, 10)
                 EndDrawing()
 
                 if isRunning {
@@ -889,7 +892,7 @@ struct SwiftGenerator {
 
             SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
             InitWindow(screenWidth, screenHeight, "\(name)")
-            SetTargetFPS(30)
+            SetTargetFPS(60)
             var camera: Camera2D = Camera2D(
                 offset: Vector2(x: 0, y: 0),
                 target: Vector2(x: 0, y: 0),
@@ -1007,6 +1010,7 @@ struct SwiftGenerator {
                             isRunning = false
                         }
                     }
+                    DrawFPS(GetScreenWidth() - 110, 10)
                 EndDrawing()
 
                 if isRunning {
