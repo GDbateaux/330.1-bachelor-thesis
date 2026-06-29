@@ -64,6 +64,11 @@ struct Carl: ParsableCommand {
             if FileManager.default.fileExists(atPath: outputURL.path) {
                 try FileManager.default.removeItem(at: outputURL)
             }
+
+            let parentDir: URL = outputURL.deletingLastPathComponent()
+            guard FileManager.default.fileExists(atPath: parentDir.path) else {
+                throw ValidationError("Output directory does not exist: \(parentDir.path)")
+            }
             try FileManager.default.copyItem(at: builtExecutable, to: outputURL)
 
             print("Executable generated at: \(outputURL.path)")
