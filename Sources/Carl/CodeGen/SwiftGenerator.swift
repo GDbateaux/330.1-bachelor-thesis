@@ -16,6 +16,9 @@ struct SwiftGenerator {
     /// Space dimension
     private let dimension: Int
 
+    /// Optional grid length for each dimension
+    private let gridLength: Int?
+
     /// Initial state probability of the grid
     private let initial: [String: Double]?
 
@@ -31,7 +34,8 @@ struct SwiftGenerator {
     /// Initializes a new SwiftGenerator with the specified AST.
     ///
     /// - Parameter AST: The source AST to be transformed to code.
-    init(_ AST: Automaton) {
+    /// - Parameter gridLength: Optional grid length for each dimension.
+    init(_ AST: Automaton, gridLength: Int? = nil) {
         self.name = AST.name
 
         let world: World = AST.world
@@ -39,6 +43,8 @@ struct SwiftGenerator {
         self.neighborhoodType = world.neighborhood.type
         self.neighborhoodRange = world.neighborhood.range
         self.dimension = world.dimension
+
+        self.gridLength = gridLength
 
         self.initial = AST.initial
         self.rules = AST.rules
@@ -413,7 +419,7 @@ struct SwiftGenerator {
 
         if dimension > 3 {
             generatedCode += """
-            let dims: [Int] = \(Array(repeating: 20, count: dimension))
+            let dims: [Int] = \(Array(repeating: gridLength ?? 20, count: dimension))
             var sim: Simulation = Simulation(dimensions: dims)
             """
             generateInitial()
@@ -425,7 +431,7 @@ struct SwiftGenerator {
         }
         else if dimension == 3 {
             generatedCode += """
-            let dims: [Int] = \(Array(repeating: 20, count: dimension))
+            let dims: [Int] = \(Array(repeating: gridLength ?? 20, count: dimension))
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
@@ -652,7 +658,7 @@ struct SwiftGenerator {
         else if neighborhoodType == "Hexagonal" {
             // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
             generatedCode += """
-            let dims: [Int] = \(Array(repeating: 200, count: dimension))
+            let dims: [Int] = \(Array(repeating: gridLength ?? 200, count: dimension))
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
@@ -861,7 +867,7 @@ struct SwiftGenerator {
             // Inspired by "Raylib examples"
             // Original source: https://www.raylib.com/examples.html
             generatedCode += """
-            let dims: [Int] = \(Array(repeating: 200, count: dimension))
+            let dims: [Int] = \(Array(repeating: gridLength ?? 200, count: dimension))
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
