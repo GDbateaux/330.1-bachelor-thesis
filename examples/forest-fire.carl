@@ -4,16 +4,15 @@ automaton ForestFire {
             Fire,
             Tree,
             Empty,
-            Ash,
+            Ash
         }
         neighborhood: VonNeumann(1)
         dimension: 2
     }
 
     initial {
-        Fire: 0.2
-        Tree: 0.4
-        Empty: 0.4
+        Tree: 0.3
+        Empty: 0.7
     }
 
     rules {

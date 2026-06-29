@@ -1,0 +1,23 @@
+name: Swift
+
+on: push
+
+jobs:
+  build:
+    name: Swift on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v7
+      - name: Set up Swift
+        uses: SwiftyLab/setup-swift@latest
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt install libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev libwayland-dev libxkbcommon-dev libxext-dev
+      - name: Compile Carl file
+        run: swift run Carl Tests/CarlTests/CompilerTests/positive/game-of-life.carl -o game-of-life

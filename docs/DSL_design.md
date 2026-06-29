@@ -87,17 +87,16 @@ automaton ForestFire {
     }
 
     initial {
-        Fire: 0.2
-        Tree: 0.4
-        Empty: 0.4
+        Tree: 0.3
+        Empty: 0.7
     }
 
     rules {
         Fire -> Ash
         Tree -> Fire when count_neighbors(Fire) > 0
-        Tree -> Fire with prob 0.01
+        Tree -> Fire with prob 0.001
         Ash -> Empty when count_neighbors(Fire) == 0
-        Empty -> Tree with prob 0.01
+        Empty -> Tree with prob 0.001
     }
 }
 ```
