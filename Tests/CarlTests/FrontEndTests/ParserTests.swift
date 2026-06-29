@@ -15,6 +15,11 @@ import Testing
             dimension: 2
         }
 
+        initial {
+            Fire: 0.2
+            Tree: 0.4
+            Empty: 0.4
+        }
 
         rules {
             Fire -> Ash
@@ -39,6 +44,7 @@ import Testing
             neighborhood: Neighborhood(type: "VonNeumann", range: 1),
             dimension: 2
         ),
+        initial: ["Fire" : 0.2, "Tree" : 0.4, "Empty" : 0.4],
         rules: [
             Rule(
                 initialState: "Fire",
@@ -98,7 +104,6 @@ import Testing
             dimension: 2
         }
 
-
         rules {
             ElectronHead -> ElectronTail
             ElectronTail -> Conductor
@@ -120,6 +125,7 @@ import Testing
             neighborhood: Neighborhood(type: "Moore", range: 1),
             dimension: 2
         ),
+        initial: [:],
         rules: [
             Rule(
                 initialState: "ElectronHead",

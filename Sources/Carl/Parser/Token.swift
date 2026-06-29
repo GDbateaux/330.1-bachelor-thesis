@@ -13,6 +13,7 @@ public enum TokenType: Sendable {
     case states
     case neighborhood
     case dimension
+    case initial
     case rules
     case when
     case with

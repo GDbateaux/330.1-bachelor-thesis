@@ -11,6 +11,7 @@ struct SemanticAnalyzer {
     /// Entry point for the semantic analysis phase.
     func verifySemantic() throws {
         try verifyWorld()
+        try verifyInitial()
         try verifyRules()
     }
 
@@ -45,6 +46,32 @@ struct SemanticAnalyzer {
         
         if dimension <= 0 {
             throw CompilerError.semanticError(message: "Dimension must be greater than 0 (got \(dimension)).")
+        }
+    }
+
+    private func verifyInitial() throws {
+        let states: [String] = AST.world.states
+        let initial: [String: Double] = AST.initial
+        var probabilitySum: Double = 0
+
+        if initial.isEmpty { 
+            return 
+        } 
+
+
+        for (state, probability) in initial {
+            guard states.contains(state) else {
+                throw CompilerError.semanticError(message: "State identifier in initial block must match a state in world block.")
+            }
+
+            probabilitySum += probability
+        }
+        
+        // Inspired by https://stackoverflow.com/a/43911753
+        // Posted by Andrea
+        // Retrieved 2026-06-29, License - CC BY-SA 4.0
+        if abs(probabilitySum - 1.0) >= Double.ulpOfOne {
+            throw CompilerError.semanticError(message: "Probabilities in initial block must sum to 1.0 (\(probabilitySum) != 1.0)")
         }
     }
 

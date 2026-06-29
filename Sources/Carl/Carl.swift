@@ -28,6 +28,9 @@ struct Carl {
                     dimension: 2
                 }
 
+                initial {
+                    Excited: 1
+                }
 
                 rules {
                     Quiescent -> Excited when count_neighbors(Excited) > 0

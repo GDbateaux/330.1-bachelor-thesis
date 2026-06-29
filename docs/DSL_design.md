@@ -2,14 +2,25 @@
 This language is designed to model cellular automata in a simple way.
 
 ## Structure
-Every program is contained in an **automaton block** (`automaton CellularAutomataName {...}`) which contains two other blocks :
+Every program is contained in an **automaton block** (`automaton CellularAutomataName {...}`) which contains three other blocks :
 
 ### World block (`world { ... }`)
 
-   This block defines the world properties :
+This block defines the world properties :
    - `states`: A list of states that a cell can hold.
    - `neighborhood`: The proximity model used to calculate a cell's neighbors (`Moore`, `VonNeumann` or `Hexagonal`), followed by its radius in parentheses (e.g. `Moore(1)`).
    - `dimension`: A number to specify the dimensionality of the grid.
+
+### Initial block (`initial { ... }`)
+
+This block defines the initial state of the grid. It assigns a probability to each
+state, determining how likely a cell is to start in that state. The probabilities
+must sum to 1.0. Any state not listed gets a probability of 0.0 (it will not appear in the initial grid).
+Each probability must be between 0.0 and 1.0.
+
+Syntax: `StateName: probability`
+
+If the `initial` block is omitted, all cells start in the first declared state.
 
 ### Rules block (`rules { ... }`)
 
@@ -49,6 +60,10 @@ automaton GameOfLife {
         dimension: 2
     }
 
+    initial {
+        Dead: 0.7
+        Alive: 0.3
+    }
 
     rules {
         Dead -> Alive when count_neighbors(Alive) == 3
@@ -71,6 +86,11 @@ automaton ForestFire {
         dimension: 2
     }
 
+    initial {
+        Fire: 0.2
+        Tree: 0.4
+        Empty: 0.4
+    }
 
     rules {
         Fire -> Ash
@@ -142,7 +162,7 @@ automaton ExcitableMedium {
 (*program*)
 program = automaton ;
 automaton = "automaton" identifier "{" main_block "}" ;
-main_block = world_block rules_block ;
+main_block = world_block initial_block rules_block ;
 
 (*world*)
 world_block = "world" "{" { world_element } "}" ;
@@ -152,6 +172,10 @@ states_def = "states" "{" identifier { "," identifier } "}" ;
 neighborhood_def = "neighborhood" ":"  neighborhood_type "(" integer ")" ;
 neighborhood_type = "Moore" | "VonNeumann" | "Hexagonal" ;
 dimension_def = "dimension" ":" integer ;
+
+(*initial*)
+initial_block = "initial" "{" { initial_element } "}" ;
+initial_element = identifier ":" number ;
 
 (*rules*)
 rules_block = "rules" "{" {rule} "}" ;

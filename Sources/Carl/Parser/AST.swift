@@ -2,6 +2,7 @@
 struct Automaton: Equatable {
     let name: String
     let world: World
+    let initial: [String: Double]
     let rules: [Rule]
 }
 
