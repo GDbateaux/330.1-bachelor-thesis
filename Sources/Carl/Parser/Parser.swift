@@ -22,10 +22,11 @@ struct Parser {
         _ = try consume(TokenType.leftBracket, "A left bracket '{' is expected after the automata name.")
         
         let worldBlock: World = try parseWorld()
+        let initialBlock: [String: Double] = try parseInitial()
         let rulesBlock: [Rule] = try parseRules()
 
         _ = try consume(TokenType.rightBracket, "A right bracket '}' is expected at the end of the automata block.")
-        return Automaton(name: name, world: worldBlock, rules: rulesBlock)
+        return Automaton(name: name, world: worldBlock, initial: initialBlock, rules: rulesBlock)
     }
 
     /// Parses the world block
@@ -69,7 +70,7 @@ struct Parser {
             _ = try consume(TokenType.comma, "Expected ',' or '}' in states list.")
             if tokens[current].type == TokenType.rightBracket { break }
             
-            let state: String = try consume(TokenType.identifier, "Expected state identifier after ','.") .lexeme
+            let state: String = try consume(TokenType.identifier, "Expected state identifier after ','.").lexeme
             states.append(state)
         }
         _ = try consume(TokenType.rightBracket, "Expected '}' to end the states block.")
@@ -108,6 +109,43 @@ struct Parser {
             )  
         }
         return dimension
+    }
+
+    /// Parses the initial block
+    private mutating func parseInitial() throws -> [String: Double] {
+        if check(TokenType.rules) {
+            return [:]
+        }
+
+        _ = try consume(TokenType.initial, "Expected keyword 'initial' or 'rules' after state block.")
+        _ = try consume(TokenType.leftBracket, "Expected '{' to start the initial block.")
+        
+        var initial: [String: Double] = [:]
+
+        while !isAtEnd() && tokens[current].type != TokenType.rightBracket {
+            let state: String = try consume(TokenType.identifier, "Expected state identifier in initial block.").lexeme
+            _ = try consume(TokenType.colon, "Expected ':' after state identifier in initial block.")
+            
+            let token: Token = tokens[current]
+            if match(TokenType.integer, TokenType.float) {
+                guard let probability: Double = Double(token.lexeme) else {
+                    throw CompilerError.parserError(
+                        message: "Probability of state in initial block must be a valid number (integer or float).", 
+                        token: token
+                    )  
+                }
+                initial[state] = probability
+            }
+            else {
+                throw CompilerError.parserError(
+                    message: "Expected a number (integer or float) for probability of state in initial block.", 
+                    token: token
+                )
+            }            
+        }
+        
+        _ = try consume(TokenType.rightBracket, "Expected '}' to end the initial block.")
+        return initial
     }
 
     /// Parses the rules block

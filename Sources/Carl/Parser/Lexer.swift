@@ -201,6 +201,7 @@ public struct Lexer{
             case "states": TokenType.states
             case "neighborhood": TokenType.neighborhood
             case "dimension": TokenType.dimension
+            case "initial": TokenType.initial
             case "rules": TokenType.rules
             case "when": TokenType.when
             case "with": TokenType.with

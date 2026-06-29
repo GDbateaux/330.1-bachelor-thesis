@@ -16,6 +16,9 @@ struct SwiftGenerator {
     /// Space dimension
     private let dimension: Int
 
+    /// Initial state probability of the grid
+    private let initial: [String: Double]?
+
     /// List of rules for the automaton
     private let rules: [Rule]
 
@@ -37,6 +40,7 @@ struct SwiftGenerator {
         self.neighborhoodRange = world.neighborhood.range
         self.dimension = world.dimension
 
+        self.initial = AST.initial
         self.rules = AST.rules
 
         stateMapping = Dictionary(uniqueKeysWithValues: zip(self.states, 0..<self.states.count))
@@ -197,7 +201,7 @@ struct SwiftGenerator {
             }
             
             if rule.probability < 1 {
-                code += " && Double.random(in: 0...1) <= \(rule.probability)" 
+                code += " && Double.random(in: 0..<1) <= \(rule.probability)" 
             }
             code += " {\n"
             code += "            return \(to)\n"
@@ -364,6 +368,45 @@ struct SwiftGenerator {
         generatedCode += sourceCode
     }
     
+    /// Generate block for grid initialisation
+    private mutating func generateInitial() {
+        guard let initial: [String: Double] = initial else { 
+            return 
+        }
+
+        if initial.isEmpty {
+            return
+        }
+        
+        let initialSorted: [(String, Double)] = initial.sorted{ $0.key < $1.key }
+        generatedCode += """
+        for i: Int in 0..<sim.grid.totalCellsCount {
+            let r: Double = Double.random(in: 0..<1)\n
+
+        """
+        
+        var probSum: Double = 0.0
+        for (state, prob) in initialSorted {
+            probSum += prob
+            if prob == 0 { 
+                continue 
+            }
+
+            let stateIdx: Int = stateMapping[state]!
+            let prefix: String = probSum == prob ? "if" : "else if"
+            generatedCode += """
+                \(prefix) r < \(probSum) { 
+                    sim.grid.setCell(idx: i, stateNum: \(stateIdx)) 
+                }\n
+            """
+        }
+        
+        generatedCode += """
+        }\n
+        
+        """
+    }
+
     /// Generates the entry point of the program
     private mutating func generateMain() {
         generatedCode += "\n"
@@ -372,6 +415,10 @@ struct SwiftGenerator {
             generatedCode += """
             let dims: [Int] = \(Array(repeating: 20, count: dimension))
             var sim: Simulation = Simulation(dimensions: dims)
+            """
+            generateInitial()
+
+            generatedCode += """
             print("Info: Rendering not available in \\(dims.count)D automaton.")
             sim.simulate()\n
             """
@@ -382,6 +429,10 @@ struct SwiftGenerator {
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
+            """
+            generateInitial()
+            
+            generatedCode += """
             let gridW: Int = dims[0]
             let gridH: Int = dims[1]
             let gridD: Int = dims.count >= 3 ? dims[2] : 1 
@@ -604,6 +655,10 @@ struct SwiftGenerator {
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
+            """
+            generateInitial()
+
+            generatedCode += """
             let screenWidth: Int32 = 800;
             let screenHeight: Int32 = screenWidth;
 
@@ -807,6 +862,10 @@ struct SwiftGenerator {
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
+            """
+            generateInitial()
+            
+            generatedCode += """
             let screenWidth: Int32 = 800;
             let screenHeight: Int32 = screenWidth;
 

@@ -5,6 +5,10 @@ automaton GameOfLife {
         dimension: 2
     }
 
+    initial {
+        Dead: 0.6
+        Alive: 0.4
+    }
 
     rules {
         Dead -> Alive when count_neighbors(Alive) == 3

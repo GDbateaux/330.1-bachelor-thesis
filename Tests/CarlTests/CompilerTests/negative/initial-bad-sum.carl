@@ -13,7 +13,7 @@ automaton ForestFire {
     initial {
         Fire: 0.2
         Tree: 0.4
-        Empty: 0.4
+        Empty: 0.5
     }
 
     rules {
