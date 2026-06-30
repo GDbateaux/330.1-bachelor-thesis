@@ -182,7 +182,7 @@ struct SwiftGenerator {
                 }
 
                 var stateCounts: [Int] = Array(repeating: 0, count: stateCount)
-                let currentState: Int = grid.getCell(idx) ?? 0
+                let currentState: Int = grid.unsafeGetCell(idx)
                 let neighborsCount: Int = grid.getNeighbors(idx: idx, neighborBuffer: &neighborBuffer)
 
                 for i: Int in 0 ..< neighborsCount {
@@ -227,9 +227,10 @@ struct SwiftGenerator {
     private mutating func generateGetLookupKey() {
         generatedCode += """
             private func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> UInt64? {
-                guard let currentState = grid.getCell(idx) else {
+                guard idx >= 0 && idx < grid.totalCellsCount else {
                     return nil
                 }
+                let currentState = grid.unsafeGetCell(idx)
 
                 let neighborsCount: Int = grid.getNeighbors(idx: idx, neighborBuffer: &neighborBuffer)
                 if neighborsCount != grid.numNeighbors {
@@ -355,14 +356,14 @@ struct SwiftGenerator {
                             print(line)
                             line = ""
                         }
-                        line += "\\(grid.getCell(i) ?? 0)"
+                        line += "\\(grid.unsafeGetCell(i))"
                     }
                     print(line)
                     print(String(repeating: "-", count: width * 2))
                 } else {
                     var allCells: [Int] = []
                     for i: Int in 0..<grid.totalCellsCount {
-                        allCells.append(grid.getCell(i) ?? 0)
+                        allCells.append(grid.unsafeGetCell(i))
                     }
                     print("Grid data (linearised): \\(allCells)")
                 }
@@ -577,7 +578,7 @@ struct SwiftGenerator {
                             for y: Int in 0..<gridH {
                                 for x: Int in 0..<gridW {
                                     let i: Int = baseZ + y * gridW + x
-                                    let state: Int = sim.grid.getCell(i) ?? 0
+                                    let state: Int = sim.grid.unsafeGetCell(i)
                                     let color: Color = colors[state]
                                     if color.a > 0 {
                                         DrawRectangle(Int32(Float(x) * layerCellSize), Int32(Float(gridH - 1 - y) * layerCellSize), Int32(layerCellSize), Int32(layerCellSize), color)
@@ -590,7 +591,7 @@ struct SwiftGenerator {
                     else {
                         BeginMode3D(camera)
                             for i: Int in 0..<sim.grid.totalCellsCount {
-                                let state: Int = sim.grid.getCell(i) ?? 0
+                                let state: Int = sim.grid.unsafeGetCell(i)
                                 let color: Color = colors[state]
                                 if color.a == 0 { 
                                     continue 
@@ -795,7 +796,7 @@ struct SwiftGenerator {
                         var x: Int = 0
                         var y: Int = 0
                         for i: Int in 0..<sim.grid.totalCellsCount {
-                            let state: Int = sim.grid.getCell(i) ?? 0
+                            let state: Int = sim.grid.unsafeGetCell(i)
                             let color: Color = colors[state]
 
                             if y % 2 == 0 {
@@ -965,7 +966,7 @@ struct SwiftGenerator {
                         var x: Int = 0
                         var y: Int = 0
                         for i: Int in 0..<sim.grid.totalCellsCount {
-                            let state: Int = sim.grid.getCell(i) ?? 0
+                            let state: Int = sim.grid.unsafeGetCell(i)
                             let color: Color = colors[state]
                             DrawRectangle(Int32(x)*cellSize, Int32(y)*cellSize, cellSize, cellSize, color)
                             x += 1
