@@ -62,9 +62,12 @@ struct SwiftGenerator {
         generatedCode += "    var grid: NDGrid\n"
         generatedCode += "    var history: [NDGrid] = []\n"
         generatedCode += "    var stateNames: [String] = \(states)\n"
+        generatedCode += "    let stateCount = \(states.count)\n"
+        generatedCode += "    let bitsPerState: Int\n"
         generatedCode += "    var lookupNextState: [UInt64:Int]?\n\n"
         generatedCode += "    init(dimensions: [Int]) {\n"
         generatedCode += "        self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))\n"
+        generatedCode += "        self.bitsPerState = Int(ceil(log2(Double(stateCount))))\n"
         generatedCode += "        self.lookupNextState = buildLookupNextCell()\n"
         generatedCode += "    }\n\n"
 
@@ -94,7 +97,6 @@ struct SwiftGenerator {
             private func buildLookupNextCell() -> [UInt64: Int]? {
                 let keyElementsCount: Int = self.grid.numNeighbors + 1
                 let stateCount: Int = \(states.count)
-                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
                 let numTotalBits: Int = bitsPerState * keyElementsCount
 
                 if numTotalBits > 64 {
@@ -179,8 +181,13 @@ struct SwiftGenerator {
                     }
                 }
 
+                var stateCounts: [Int] = Array(repeating: 0, count: stateCount)
                 let currentState: Int = grid.getCell(idx) ?? 0
+                let neighborsCount: Int = grid.getNeighbors(idx: idx, neighborBuffer: &neighborBuffer)
 
+                for i: Int in 0 ..< neighborsCount {
+                    stateCounts[neighborBuffer[i]] += 1
+                }
         \(rulesSwiftCode())
                 return currentState
             }\n\n
@@ -229,8 +236,6 @@ struct SwiftGenerator {
                     return nil
                 }
 
-                let stateCount: Int = \(states.count)
-                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
                 var key: UInt64 = UInt64(currentState)
 
                 for i: Int in 0..<neighborsCount {
@@ -257,12 +262,12 @@ struct SwiftGenerator {
                 generatedExpr += op.rawValue + " " + generateExpr(right)
             case Expression.neighborShortcut(let state):
                 if let stateNum = stateMapping[state] {
-                    generatedExpr += "grid.countNeighbors(idx: idx, stateType: \(stateNum))"
+                    generatedExpr += "stateCounts[\(stateNum)]"
                 }
             case Expression.call(let functionName, let arguments):
                 if functionName == "count_neighbors" && arguments.count == 1 {
                     if let stateNum = stateMapping[arguments[0]] {
-                        generatedExpr += "grid.countNeighbors(idx: idx, stateType: \(stateNum))"
+                        generatedExpr += "stateCounts[\(stateNum)]"
                     }
                 }
         }
