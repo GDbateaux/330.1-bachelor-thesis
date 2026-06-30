@@ -16,6 +16,9 @@ struct SwiftGenerator {
     /// Space dimension
     private let dimension: Int
 
+    /// Optional grid length for each dimension
+    private let gridLength: Int?
+
     /// Initial state probability of the grid
     private let initial: [String: Double]?
 
@@ -31,7 +34,8 @@ struct SwiftGenerator {
     /// Initializes a new SwiftGenerator with the specified AST.
     ///
     /// - Parameter AST: The source AST to be transformed to code.
-    init(_ AST: Automaton) {
+    /// - Parameter gridLength: Optional grid length for each dimension.
+    init(_ AST: Automaton, gridLength: Int? = nil) {
         self.name = AST.name
 
         let world: World = AST.world
@@ -39,6 +43,8 @@ struct SwiftGenerator {
         self.neighborhoodType = world.neighborhood.type
         self.neighborhoodRange = world.neighborhood.range
         self.dimension = world.dimension
+
+        self.gridLength = gridLength
 
         self.initial = AST.initial
         self.rules = AST.rules
@@ -56,9 +62,12 @@ struct SwiftGenerator {
         generatedCode += "    var grid: NDGrid\n"
         generatedCode += "    var history: [NDGrid] = []\n"
         generatedCode += "    var stateNames: [String] = \(states)\n"
+        generatedCode += "    let stateCount = \(states.count)\n"
+        generatedCode += "    let bitsPerState: Int\n"
         generatedCode += "    var lookupNextState: [UInt64:Int]?\n\n"
         generatedCode += "    init(dimensions: [Int]) {\n"
         generatedCode += "        self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))\n"
+        generatedCode += "        self.bitsPerState = Int(ceil(log2(Double(stateCount))))\n"
         generatedCode += "        self.lookupNextState = buildLookupNextCell()\n"
         generatedCode += "    }\n\n"
 
@@ -88,7 +97,6 @@ struct SwiftGenerator {
             private func buildLookupNextCell() -> [UInt64: Int]? {
                 let keyElementsCount: Int = self.grid.numNeighbors + 1
                 let stateCount: Int = \(states.count)
-                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
                 let numTotalBits: Int = bitsPerState * keyElementsCount
 
                 if numTotalBits > 64 {
@@ -173,8 +181,13 @@ struct SwiftGenerator {
                     }
                 }
 
-                let currentState: Int = grid.getCell(idx) ?? 0
+                var stateCounts: [Int] = Array(repeating: 0, count: stateCount)
+                let currentState: Int = grid.unsafeGetCell(idx)
+                let neighborsCount: Int = grid.getNeighbors(idx: idx, neighborBuffer: &neighborBuffer)
 
+                for i: Int in 0 ..< neighborsCount {
+                    stateCounts[neighborBuffer[i]] += 1
+                }
         \(rulesSwiftCode())
                 return currentState
             }\n\n
@@ -214,17 +227,16 @@ struct SwiftGenerator {
     private mutating func generateGetLookupKey() {
         generatedCode += """
             private func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> UInt64? {
-                guard let currentState = grid.getCell(idx) else {
+                guard idx >= 0 && idx < grid.totalCellsCount else {
                     return nil
                 }
+                let currentState = grid.unsafeGetCell(idx)
 
                 let neighborsCount: Int = grid.getNeighbors(idx: idx, neighborBuffer: &neighborBuffer)
                 if neighborsCount != grid.numNeighbors {
                     return nil
                 }
 
-                let stateCount: Int = \(states.count)
-                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
                 var key: UInt64 = UInt64(currentState)
 
                 for i: Int in 0..<neighborsCount {
@@ -251,12 +263,12 @@ struct SwiftGenerator {
                 generatedExpr += op.rawValue + " " + generateExpr(right)
             case Expression.neighborShortcut(let state):
                 if let stateNum = stateMapping[state] {
-                    generatedExpr += "grid.countNeighbors(idx: idx, stateType: \(stateNum))"
+                    generatedExpr += "stateCounts[\(stateNum)]"
                 }
             case Expression.call(let functionName, let arguments):
                 if functionName == "count_neighbors" && arguments.count == 1 {
                     if let stateNum = stateMapping[arguments[0]] {
-                        generatedExpr += "grid.countNeighbors(idx: idx, stateType: \(stateNum))"
+                        generatedExpr += "stateCounts[\(stateNum)]"
                     }
                 }
         }
@@ -344,14 +356,14 @@ struct SwiftGenerator {
                             print(line)
                             line = ""
                         }
-                        line += "\\(grid.getCell(i) ?? 0)"
+                        line += "\\(grid.unsafeGetCell(i))"
                     }
                     print(line)
                     print(String(repeating: "-", count: width * 2))
                 } else {
                     var allCells: [Int] = []
                     for i: Int in 0..<grid.totalCellsCount {
-                        allCells.append(grid.getCell(i) ?? 0)
+                        allCells.append(grid.unsafeGetCell(i))
                     }
                     print("Grid data (linearised): \\(allCells)")
                 }
@@ -413,7 +425,7 @@ struct SwiftGenerator {
 
         if dimension > 3 {
             generatedCode += """
-            let dims: [Int] = \(Array(repeating: 20, count: dimension))
+            let dims: [Int] = \(Array(repeating: gridLength ?? 20, count: dimension))
             var sim: Simulation = Simulation(dimensions: dims)
             """
             generateInitial()
@@ -425,7 +437,7 @@ struct SwiftGenerator {
         }
         else if dimension == 3 {
             generatedCode += """
-            let dims: [Int] = \(Array(repeating: 20, count: dimension))
+            let dims: [Int] = \(Array(repeating: gridLength ?? 20, count: dimension))
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
@@ -566,7 +578,7 @@ struct SwiftGenerator {
                             for y: Int in 0..<gridH {
                                 for x: Int in 0..<gridW {
                                     let i: Int = baseZ + y * gridW + x
-                                    let state: Int = sim.grid.getCell(i) ?? 0
+                                    let state: Int = sim.grid.unsafeGetCell(i)
                                     let color: Color = colors[state]
                                     if color.a > 0 {
                                         DrawRectangle(Int32(Float(x) * layerCellSize), Int32(Float(gridH - 1 - y) * layerCellSize), Int32(layerCellSize), Int32(layerCellSize), color)
@@ -579,7 +591,7 @@ struct SwiftGenerator {
                     else {
                         BeginMode3D(camera)
                             for i: Int in 0..<sim.grid.totalCellsCount {
-                                let state: Int = sim.grid.getCell(i) ?? 0
+                                let state: Int = sim.grid.unsafeGetCell(i)
                                 let color: Color = colors[state]
                                 if color.a == 0 { 
                                     continue 
@@ -639,6 +651,7 @@ struct SwiftGenerator {
                             isRunning = false
                         }
                     }
+                    DrawFPS(GetScreenWidth() - 110, 10)
                 EndDrawing()
 
                 if isRunning {
@@ -651,7 +664,7 @@ struct SwiftGenerator {
         else if neighborhoodType == "Hexagonal" {
             // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
             generatedCode += """
-            let dims: [Int] = \(Array(repeating: 200, count: dimension))
+            let dims: [Int] = \(Array(repeating: gridLength ?? 200, count: dimension))
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
@@ -776,13 +789,14 @@ struct SwiftGenerator {
 
                 BeginDrawing()
                     ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
+                    DrawFPS(GetScreenWidth() - 110, 10)
 
                     BeginMode2D(camera)
                         let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
                         var x: Int = 0
                         var y: Int = 0
                         for i: Int in 0..<sim.grid.totalCellsCount {
-                            let state: Int = sim.grid.getCell(i) ?? 0
+                            let state: Int = sim.grid.unsafeGetCell(i)
                             let color: Color = colors[state]
 
                             if y % 2 == 0 {
@@ -845,6 +859,7 @@ struct SwiftGenerator {
                             isRunning = false
                         }
                     }
+                    DrawFPS(GetScreenWidth() - 110, 10)
                 EndDrawing()
 
                 if isRunning {
@@ -858,7 +873,7 @@ struct SwiftGenerator {
             // Inspired by "Raylib examples"
             // Original source: https://www.raylib.com/examples.html
             generatedCode += """
-            let dims: [Int] = \(Array(repeating: 200, count: dimension))
+            let dims: [Int] = \(Array(repeating: gridLength ?? 200, count: dimension))
             var isRunning: Bool = true
             var sim: Simulation = Simulation(dimensions: dims)
 
@@ -889,7 +904,7 @@ struct SwiftGenerator {
 
             SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
             InitWindow(screenWidth, screenHeight, "\(name)")
-            SetTargetFPS(30)
+            SetTargetFPS(60)
             var camera: Camera2D = Camera2D(
                 offset: Vector2(x: 0, y: 0),
                 target: Vector2(x: 0, y: 0),
@@ -951,7 +966,7 @@ struct SwiftGenerator {
                         var x: Int = 0
                         var y: Int = 0
                         for i: Int in 0..<sim.grid.totalCellsCount {
-                            let state: Int = sim.grid.getCell(i) ?? 0
+                            let state: Int = sim.grid.unsafeGetCell(i)
                             let color: Color = colors[state]
                             DrawRectangle(Int32(x)*cellSize, Int32(y)*cellSize, cellSize, cellSize, color)
                             x += 1
@@ -1007,6 +1022,7 @@ struct SwiftGenerator {
                             isRunning = false
                         }
                     }
+                    DrawFPS(GetScreenWidth() - 110, 10)
                 EndDrawing()
 
                 if isRunning {

@@ -137,6 +137,14 @@ struct NDGrid {
         if idx < 0 || idx >= totalCellsCount {
             return nil
         }
+        return unsafeGetCell(idx)
+    }
+
+    /// Extracts the state value of a specific cell without bounds checking
+    ///
+    /// - Parameter idx: Linear index of the cell (must be valid)
+    /// - Returns: The cell state integer
+    func unsafeGetCell(_ idx: Int) -> Int {
         let arrayIndex: Int = idx / numCellsPerInt
         let bitOffset: Int = (idx % numCellsPerInt) * bitsPerState
 
@@ -157,12 +165,8 @@ struct NDGrid {
         var res: Int = 0
 
         for offset: Int in getValidLinearOffsets(idx: idx) {
-            let neighborIdx: Int = idx + offset
-            
-            if let type: Int = getCell(neighborIdx) {
-                if type == stateType {
-                    res += 1
-                }
+            if unsafeGetCell(idx + offset) == stateType {
+                res += 1
             }
         }
         return res
@@ -176,15 +180,11 @@ struct NDGrid {
     /// - Returns: The number of neighbors written to the buffer
     func getNeighbors(idx: Int, neighborBuffer: inout [Int]) -> Int {
         let offsets: [Int] = getValidLinearOffsets(idx: idx)
-        var count: Int = 0
 
-        for offset: Int in offsets {
-            if let neighbor = getCell(idx + offset) {
-                neighborBuffer[count] = neighbor
-                count += 1
-            }
+        for i: Int in 0..<offsets.count {
+            neighborBuffer[i] = unsafeGetCell(idx + offsets[i])
         }
-        return count
+        return offsets.count
     }
 
     /// Retrieves the precomputed valid neighbor offsets for a given cell.

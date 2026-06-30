@@ -17,10 +17,14 @@ struct Carl: ParsableCommand {
     @Flag(help: "Clean the build cache and rebuild from scratch.")
     var clean: Bool = false
 
+    /// Optional grid length for each dimension.
+    @Option(name: .shortAndLong, help: "Grid length for each dimension (default: 200 for 2D, 20 for 3D+).")
+    var gridLength: Int?
+
     /// Run the command.
     mutating func run() throws {
         let sourceCode: String = try getSourceCode(sourceFile: sourceFile)
-        let compiler: Compiler = Compiler(source: sourceCode)
+        let compiler: Compiler = Compiler(source: sourceCode, gridLength: gridLength)
 
         let generatedCode: String = try compiler.compile()
         let buildDir: URL = carlBuildDirectory()
