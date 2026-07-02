@@ -4,7 +4,7 @@ import Foundation
 // # URL: https://stackoverflow.com/questions/39176196/how-to-provide-a-localized-description-with-an-error-type-in-swift
 /// An enumration of potential compilation errors.
 enum CompilerError: Error, Equatable {
-    case lexerError(message: String, line: Int)
+    case lexerError(message: String, line: Int, column: Int)
     case parserError(message: String, token: Token)
     case semanticError(message: String)
 }
@@ -13,10 +13,10 @@ enum CompilerError: Error, Equatable {
 extension CompilerError: LocalizedError {
     public var errorDescription: String? {
         switch self {
-            case .lexerError(let message, let line):
-                return "Lexer error on line \(line): \(message)"
-            case .parserError(let message, _):
-                return "Parser error: \(message)"
+            case .lexerError(let message, let line, let column):
+                return "Lexer error on line \(line), column \(column): \(message)"
+            case .parserError(let message, let token):
+                return "Parser error on line \(token.line), column \(token.column): \(message)"
             case .semanticError(let message):
                 return "Semantic error: \(message)"
         }

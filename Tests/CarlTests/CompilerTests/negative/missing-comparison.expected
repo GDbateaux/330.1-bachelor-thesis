@@ -1,1 +1,1 @@
-Parser error: Expected an integer number, a '#' shortcut, a function call, or '('; got '}'.
+Parser error on line 5, column 5: Expected an integer number, a '#' shortcut, a function call, or '('; got '}'.

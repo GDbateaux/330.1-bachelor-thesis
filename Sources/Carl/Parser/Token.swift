@@ -3,6 +3,7 @@ public struct Token: Sendable, Equatable {
     public let type: TokenType
     public let lexeme: String
     public let line: Int
+    public let column: Int
 }
 
 /// An enumeration defining all valid categories of tokens.
