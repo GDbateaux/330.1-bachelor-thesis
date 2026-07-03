@@ -209,7 +209,7 @@ struct NDGrid {
     /// 
     /// - Parameter idx: Linear index of the reference cell
     /// - Returns: Array of linear offsets that do not cross edges
-    private func computeValidLinearOffsets(idx: Int)-> [Int] {
+    private func computeValidLinearOffsets(idx: Int) -> [Int] {
         let coords: [Int] = coordinates(linearIndex: idx)
         var res: [Int] = []
         var isValid: Bool = true

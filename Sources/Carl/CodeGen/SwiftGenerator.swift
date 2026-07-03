@@ -275,7 +275,7 @@ struct SwiftGenerator {
         return generatedExpr
     }
 
-    /// Generate the step annd stepBack functions, which updates the grid
+    /// Generate the step and stepBack functions, which updates the grid
     private mutating func generateStep() {
         generatedCode += """
                 mutating func step() {
@@ -391,6 +391,10 @@ struct SwiftGenerator {
         """
     }
 
+    /// Get the UI menu overlay code.
+    /// 
+    /// - Parameter indent: The number of space for indentation
+    /// - Returns: The menu code
     private func getMenuCode(indent: Int) -> String {
         let s: String = String(repeating: " ", count: indent)
 
@@ -444,6 +448,22 @@ struct SwiftGenerator {
         """
     }
 
+    /// Get the color palette code code for.
+    ///
+    /// - Parameter transparentZero: Whether state 0 should be transparent
+    private func getColorsPalette(transparentZero: Bool) -> String {
+        let zeroAlpha: String = transparentZero ? "0" : "255"
+        return """
+        for i: Int in 0..<stateCount {
+            switch i {
+                case 0: colors.append(Color(r: 0, g: 0, b: 0, a: \(zeroAlpha)))
+                case 1: colors.append(Color(r: 255, g: 255, b: 255, a: 255))
+                default: colors.append(ColorFromHSV(Float(i - 2) * (360.0 / Float(stateCount - 2)), 0.8, 0.9))
+            }
+        }
+        """
+    }
+
     /// Generates the entry point of the program
     private mutating func generateMain() {
         generatedCode += "\n"
@@ -474,8 +494,8 @@ struct SwiftGenerator {
             let gridH: Int = dims[1]
             let gridD: Int = dims.count >= 3 ? dims[2] : 1 
 
-            let screenWidth: Int32 = 800;
-            let screenHeight: Int32 = screenWidth;
+            let screenWidth: Int32 = 800
+            let screenHeight: Int32 = screenWidth
 
             let worldSize: Float = 40
             let cellSize: Float = worldSize / Float(max(gridW, max(gridH, gridD)))
@@ -489,13 +509,7 @@ struct SwiftGenerator {
             var editingLayer: Int = 0
             var selectedColorPicker: Int = -1
 
-            for i: Int in 0..<stateCount {
-                switch i {
-                    case 0: colors.append(Color(r: 0, g: 0, b: 0, a: 0))
-                    case 1: colors.append(Color(r: 255, g: 255, b: 255, a: 255))
-                    default: colors.append(ColorFromHSV(Float(i - 2) * (360.0 / Float(stateCount - 2)), 0.8, 0.9))
-                }
-            }
+            \(getColorsPalette(transparentZero: true))
 
             SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
             InitWindow(screenWidth, screenHeight, "\(name)")
@@ -667,13 +681,7 @@ struct SwiftGenerator {
             var showMenu: Bool = false
             var selectedColorPicker: Int = -1
 
-            for i: Int in 0..<stateCount {
-                switch i {
-                    case 0: colors.append(Color(r: 0, g: 0, b: 0, a: 255))
-                    case 1: colors.append(Color(r: 255, g: 255, b: 255, a: 255))
-                    default: colors.append(ColorFromHSV(Float(i - 2) * (360.0 / Float(stateCount - 2)), 0.8, 0.9))
-                }
-            }
+            \(getColorsPalette(transparentZero: false))
 
             // --- Hex helpers ---
             // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
@@ -829,13 +837,7 @@ struct SwiftGenerator {
             var showMenu: Bool = false
             var selectedColorPicker: Int = -1
 
-            for i: Int in 0..<stateCount {
-                switch i {
-                    case 0: colors.append(Color(r: 0, g: 0, b: 0, a: 255))
-                    case 1: colors.append(Color(r: 255, g: 255, b: 255, a: 255))
-                    default: colors.append(ColorFromHSV(Float(i - 2) * (360.0 / Float(stateCount - 2)), 0.8, 0.9))
-                }
-            }
+            \(getColorsPalette(transparentZero: false))
 
             SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
             InitWindow(screenWidth, screenHeight, "\(name)")
