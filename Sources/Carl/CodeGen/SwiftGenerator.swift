@@ -391,6 +391,59 @@ struct SwiftGenerator {
         """
     }
 
+    private func getMenuCode(indent: Int) -> String {
+        let s: String = String(repeating: " ", count: indent)
+
+        return """
+        \(s)if showMenu {
+        \(s)    let menuWidth: Float = Float(GetScreenWidth()) / 3
+        \(s)    GuiPanel(Rectangle(x: 0, y: 0, width: menuWidth, height: Float(GetScreenHeight())), "MENU")
+        \(s)
+        \(s)    for i: Int in 0..<stateCount {
+        \(s)        let row: Int32 = 30 + Int32(i) * 30
+        \(s)        DrawRectangle(5, row, 20, 20, colors[i])
+        \(s)
+        \(s)        if GuiButton(Rectangle(x: 30, y: Float(row), width: menuWidth - 40, height: 20), sim.stateNames[i]) != 0 {
+        \(s)            selectedColorPicker = selectedColorPicker == i ? -1 : i
+        \(s)        }
+        \(s)    }
+        \(s)
+        \(s)    if selectedColorPicker >= 0 {
+        \(s)        let popupWidth: Float = 260
+        \(s)        let popupHeight: Float = 230
+        \(s)        let popupX: Float = (Float(GetScreenWidth()) - popupWidth) / 2
+        \(s)        let popupY: Float = (Float(GetScreenHeight()) - popupHeight) / 2
+        \(s)
+        \(s)        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Color(r: 0, g: 0, b: 0, a: 60))
+        \(s)        if GuiWindowBox(Rectangle(x: popupX, y: popupY, width: popupWidth, height: popupHeight), sim.stateNames[selectedColorPicker]) == 1 {
+        \(s)            selectedColorPicker = -1
+        \(s)        }
+        \(s)        else {
+        \(s)            GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
+        \(s)
+        \(s)            var alphaVal: Float = Float(colors[selectedColorPicker].a) / 255.0
+        \(s)            GuiColorBarAlpha(Rectangle(x: popupX + 10, y: popupY + 170, width: popupWidth - 40, height: 20), "", &alphaVal)
+        \(s)            colors[selectedColorPicker].a = UInt8(alphaVal * 255.0)
+        \(s)        }
+        \(s)    }
+        \(s)    else {
+        \(s)        if IsMouseButtonPressed(Int32(MOUSE_BUTTON_LEFT.rawValue)) && GetMouseX() > GetScreenWidth() / 3 {
+        \(s)            selectedColorPicker = -1
+        \(s)            showMenu = false
+        \(s)            isRunning = true
+        \(s)        }
+        \(s)    }
+        \(s)}
+        \(s)else {
+        \(s)    if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(Int32(ICON_BURGER_MENU.rawValue), "")) != 0 {
+        \(s)        showMenu = true
+        \(s)        isRunning = false
+        \(s)    }
+        \(s)}
+        \(s)DrawFPS(GetScreenWidth() - 110, 10)
+        """
+    }
+
     /// Generates the entry point of the program
     private mutating func generateMain() {
         generatedCode += "\n"
@@ -579,51 +632,7 @@ struct SwiftGenerator {
                         EndMode3D()
                     }
 
-                    if showMenu {
-                        let menuWidth: Float = Float(GetScreenWidth()) / 3
-                        GuiPanel(Rectangle(x: 0, y: 0, width: menuWidth, height: Float(GetScreenHeight())), "MENU")
-
-                        for i: Int in 0..<stateCount {
-                            let row: Int32 = 30 + Int32(i) * 30
-                            DrawRectangle(5, row, 20, 20, colors[i])
-
-                            if GuiButton(Rectangle(x: 30, y: Float(row), width: menuWidth - 40, height: 20), sim.stateNames[i]) != 0 {
-                                selectedColorPicker = selectedColorPicker == i ? -1 : i
-                            }
-                        }
-
-                        if selectedColorPicker >= 0 {
-                            let popupWidth: Float = 260
-                            let popupHeight: Float = 230
-                            let popupX: Float = (Float(GetScreenWidth()) - popupWidth) / 2
-                            let popupY: Float = (Float(GetScreenHeight()) - popupHeight) / 2
-
-                            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Color(r: 0, g: 0, b: 0, a: 60))
-                            if GuiWindowBox(Rectangle(x: popupX, y: popupY, width: popupWidth, height: popupHeight), sim.stateNames[selectedColorPicker]) == 1 {
-                                selectedColorPicker = -1
-                            }
-                            else {
-                                GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
-                                
-                                var isVisible: Bool = colors[selectedColorPicker].a > 0
-                                GuiCheckBox(Rectangle(x: popupX + 10, y: popupY + 170, width: 20, height: 20), "Visible", &isVisible)
-                                colors[selectedColorPicker].a = isVisible ? 255 : 0
-                            }
-                        }
-                        else{
-                            if IsMouseButtonPressed(Int32(MOUSE_BUTTON_LEFT.rawValue)) && GetMouseX() > GetScreenWidth() / 3 {
-                                selectedColorPicker = -1
-                                showMenu = false
-                            }
-                        } 
-                    }
-                    else {
-                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(Int32(ICON_BURGER_MENU.rawValue), "")) != 0 {
-                            showMenu = true
-                            isRunning = false
-                        }
-                    }
-                    DrawFPS(GetScreenWidth() - 110, 10)
+            \(getMenuCode(indent: 8))
                 EndDrawing()
 
                 if isRunning {
@@ -761,7 +770,6 @@ struct SwiftGenerator {
 
                 BeginDrawing()
                     ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
-                    DrawFPS(GetScreenWidth() - 110, 10)
 
                     BeginMode2D(camera)
                         let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
@@ -786,52 +794,7 @@ struct SwiftGenerator {
                         }
                     EndMode2D()
 
-                    if showMenu {
-                        let menuWidth: Float = Float(GetScreenWidth()) / 3
-                        GuiPanel(Rectangle(x: 0, y: 0, width: menuWidth, height: Float(GetScreenHeight())), "MENU")
-
-                        for i: Int in 0..<stateCount {
-                            let row: Int32 = 30 + Int32(i) * 30
-                            DrawRectangle(5, row, 20, 20, colors[i])
-
-                            if GuiButton(Rectangle(x: 30, y: Float(row), width: menuWidth - 40, height: 20), sim.stateNames[i]) != 0 {
-                                selectedColorPicker = selectedColorPicker == i ? -1 : i
-                            }
-                        }
-
-                        if selectedColorPicker >= 0 {
-                            let popupWidth: Float = 260
-                            let popupHeight: Float = 230
-                            let popupX: Float = (Float(GetScreenWidth()) - popupWidth) / 2
-                            let popupY: Float = (Float(GetScreenHeight()) - popupHeight) / 2
-
-                            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Color(r: 0, g: 0, b: 0, a: 60))
-                            if GuiWindowBox(Rectangle(x: popupX, y: popupY, width: popupWidth, height: popupHeight), sim.stateNames[selectedColorPicker]) == 1 {
-                                selectedColorPicker = -1
-                            }
-                            else {
-                                GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
-                                
-                                var alphaVal: Float = Float(colors[selectedColorPicker].a) / 255.0
-                                GuiColorBarAlpha(Rectangle(x: popupX + 10, y: popupY + 170, width: popupWidth - 40, height: 20), "", &alphaVal)
-                                colors[selectedColorPicker].a = UInt8(alphaVal * 255.0)
-                            }
-                        }
-                        else {
-                            if IsMouseButtonPressed(Int32(MOUSE_BUTTON_LEFT.rawValue)) && GetMouseX() > GetScreenWidth() / 3 {
-                                selectedColorPicker = -1
-                                showMenu = false
-                                isRunning = true
-                            }
-                        }
-                    }
-                    else {
-                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(Int32(ICON_BURGER_MENU.rawValue), "")) != 0 {
-                            showMenu = true
-                            isRunning = false
-                        }
-                    }
-                    DrawFPS(GetScreenWidth() - 110, 10)
+            \(getMenuCode(indent: 8))
                 EndDrawing()
 
                 if isRunning {
@@ -949,52 +912,7 @@ struct SwiftGenerator {
                         }
                     EndMode2D()
 
-                    if showMenu {
-                        let menuWidth: Float = Float(GetScreenWidth()) / 3
-                        GuiPanel(Rectangle(x: 0, y: 0, width: menuWidth, height: Float(GetScreenHeight())), "MENU")
-
-                        for i: Int in 0..<stateCount {
-                            let row: Int32 = 30 + Int32(i) * 30
-                            DrawRectangle(5, row, 20, 20, colors[i])
-
-                            if GuiButton(Rectangle(x: 30, y: Float(row), width: menuWidth - 40, height: 20), sim.stateNames[i]) != 0 {
-                                selectedColorPicker = selectedColorPicker == i ? -1 : i
-                            }
-                        }
-
-                        if selectedColorPicker >= 0 {
-                            let popupWidth: Float = 260
-                            let popupHeight: Float = 230
-                            let popupX: Float = (Float(GetScreenWidth()) - popupWidth) / 2
-                            let popupY: Float = (Float(GetScreenHeight()) - popupHeight) / 2
-
-                            DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), Color(r: 0, g: 0, b: 0, a: 60))
-                            if GuiWindowBox(Rectangle(x: popupX, y: popupY, width: popupWidth, height: popupHeight), sim.stateNames[selectedColorPicker]) == 1 {
-                                selectedColorPicker = -1
-                            }
-                            else {
-                                GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
-                                
-                                var alphaVal: Float = Float(colors[selectedColorPicker].a) / 255.0
-                                GuiColorBarAlpha(Rectangle(x: popupX + 10, y: popupY + 170, width: popupWidth - 40, height: 20), "", &alphaVal)
-                                colors[selectedColorPicker].a = UInt8(alphaVal * 255.0)
-                            }
-                        }
-                        else {
-                            if IsMouseButtonPressed(Int32(MOUSE_BUTTON_LEFT.rawValue)) && GetMouseX() > GetScreenWidth() / 3 {
-                                selectedColorPicker = -1
-                                showMenu = false
-                                isRunning = true
-                            }
-                        }
-                    }
-                    else {
-                        if GuiButton(Rectangle(x: 10, y: 10, width: 50, height: 50), GuiIconText(Int32(ICON_BURGER_MENU.rawValue), "")) != 0 {
-                            showMenu = true
-                            isRunning = false
-                        }
-                    }
-                    DrawFPS(GetScreenWidth() - 110, 10)
+            \(getMenuCode(indent: 8))
                 EndDrawing()
 
                 if isRunning {
