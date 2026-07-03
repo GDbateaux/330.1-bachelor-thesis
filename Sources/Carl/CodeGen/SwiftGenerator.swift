@@ -448,7 +448,57 @@ struct SwiftGenerator {
         """
     }
 
-    /// Get the color palette code code for.
+    /// Get the window and graphics library initialization code.
+    /// 
+    /// - Parameter fps: Number of target fps for the window
+    /// - Returns: The window setup code
+    private func getWindowSetupCode(fps: Int) -> String {
+        return """
+        SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
+        InitWindow(screenWidth, screenHeight, "\(name)")
+        SetTargetFPS(\(fps))
+        GuiSetIconScale(3)
+        """
+    }
+
+    /// Get the simulation playback controls.
+    /// 
+    /// - Parameter indent: The number of space for indentation
+    /// - Returns: The step control code
+    private func getStepControlsCode(indent: Int) -> String {
+        let s: String = String(repeating: " ", count: indent)
+        return """
+        \(s)if IsKeyPressed(Int32(KEY_SPACE.rawValue)) {
+        \(s)    isRunning = !isRunning
+        \(s)}
+        \(s)
+        \(s)if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
+        \(s)    sim.step()
+        \(s)}
+        \(s)
+        \(s)if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
+        \(s)    sim.stepBack()
+        \(s)}
+        """
+    }
+
+    /// Get the end of the rendering loop: menu overlay, frame end, step logic, and window cleanup.
+    /// 
+    /// - Parameter indent: The number of space for indentation
+    /// - Returns: The game loop skeleton code
+    private func getGameLoopSkeletonCode(indent: Int) -> String {
+        let s: String = String(repeating: " ", count: indent)
+        return getMenuCode(indent: 8) + "\n"
+            + s + "    EndDrawing()\n"
+            + s + "\n"
+            + s + "    if isRunning {\n"
+            + s + "        sim.step()\n"
+            + s + "    }\n"
+            + s + "}\n"
+            + s + "CloseWindow()\n"
+    }
+
+    /// Get the color palette assignment code for each state.
     ///
     /// - Parameter transparentZero: Whether state 0 should be transparent
     private func getColorsPalette(transparentZero: Bool) -> String {
@@ -511,9 +561,7 @@ struct SwiftGenerator {
 
             \(getColorsPalette(transparentZero: true))
 
-            SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
-            InitWindow(screenWidth, screenHeight, "\(name)")
-            SetTargetFPS(30)
+            \(getWindowSetupCode(fps: 60))
             var camera: Camera3D = Camera3D(
                 position: Vector3(x: 100, y: 100, z: 100),
                 target: Vector3(x: 0, y: 0, z: 0),
@@ -530,7 +578,6 @@ struct SwiftGenerator {
                 rotation: 0,
                 zoom: 0.96
             )
-            GuiSetIconScale(3)
 
             let cx: Float = Float(gridW) * cellSize / 2
             let cy: Float = Float(gridH) * cellSize / 2
@@ -646,14 +693,7 @@ struct SwiftGenerator {
                         EndMode3D()
                     }
 
-            \(getMenuCode(indent: 8))
-                EndDrawing()
-
-                if isRunning {
-                    sim.step()
-                }
-            }
-            CloseWindow()
+            \(getGameLoopSkeletonCode(indent: 0))
             """
         }
         else if neighborhoodType == "Hexagonal" {
@@ -722,16 +762,13 @@ struct SwiftGenerator {
             }
 
             // --- Display ---
-            SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
-            InitWindow(screenWidth, screenHeight, "\(name)")
-            SetTargetFPS(30)
+            \(getWindowSetupCode(fps: 60))
             var camera: Camera2D = Camera2D(
                 offset: Vector2(x: 0, y: 0),
                 target: Vector2(x: 0, y: 0),
                 rotation: 0,
                 zoom: 1.0
             )
-            GuiSetIconScale(3)
 
             while !WindowShouldClose() {
                 if !showMenu {
@@ -763,17 +800,7 @@ struct SwiftGenerator {
                         }
                     }
 
-                    if IsKeyPressed(Int32(KEY_SPACE.rawValue)) {
-                        isRunning = !isRunning
-                    }
-
-                    if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
-                        sim.step()
-                    }
-
-                    if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
-                        sim.stepBack()
-                    }
+            \(getStepControlsCode(indent: 8))
                 }
 
                 BeginDrawing()
@@ -802,14 +829,7 @@ struct SwiftGenerator {
                         }
                     EndMode2D()
 
-            \(getMenuCode(indent: 8))
-                EndDrawing()
-
-                if isRunning {
-                    sim.step()
-                }
-            }
-            CloseWindow()\n
+            \(getGameLoopSkeletonCode(indent: 0))
             """
         }
         else {
@@ -839,16 +859,13 @@ struct SwiftGenerator {
 
             \(getColorsPalette(transparentZero: false))
 
-            SetConfigFlags(UInt32(FLAG_WINDOW_RESIZABLE.rawValue))
-            InitWindow(screenWidth, screenHeight, "\(name)")
-            SetTargetFPS(60)
+            \(getWindowSetupCode(fps: 60))
             var camera: Camera2D = Camera2D(
                 offset: Vector2(x: 0, y: 0),
                 target: Vector2(x: 0, y: 0),
                 rotation: 0,
                 zoom: 1.0
             )
-            GuiSetIconScale(3)
 
             while !WindowShouldClose() {
                 if !showMenu {
@@ -882,17 +899,7 @@ struct SwiftGenerator {
                         }
                     }
 
-                    if IsKeyPressed(Int32(KEY_SPACE.rawValue)) {
-                        isRunning = !isRunning
-                    }
-
-                    if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
-                        sim.step()
-                    }
-
-                    if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
-                        sim.stepBack()
-                    }
+            \(getStepControlsCode(indent: 8))
                 }
 
                 BeginDrawing()
@@ -914,14 +921,7 @@ struct SwiftGenerator {
                         }
                     EndMode2D()
 
-            \(getMenuCode(indent: 8))
-                EndDrawing()
-
-                if isRunning {
-                    sim.step()
-                }
-            }
-            CloseWindow()\n
+            \(getGameLoopSkeletonCode(indent: 0))
             """
         }
 
