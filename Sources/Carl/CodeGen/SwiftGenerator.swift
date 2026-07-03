@@ -56,17 +56,21 @@ struct SwiftGenerator {
     /// 
     /// - Returns: A string containing the swift code
     mutating func generate() throws -> String {
-        generatedCode += "import Foundation\n"
-        generatedCode += "import CRaylib\n\n"
-        generatedCode += "struct Simulation {\n"
-        generatedCode += "    var grid: NDGrid\n"
-        generatedCode += "    var history: [NDGrid] = []\n"
-        generatedCode += "    var stateNames: [String] = \(states)\n"
-        generatedCode += "    var lookupNextState: [UInt64:Int]?\n\n"
-        generatedCode += "    init(dimensions: [Int]) {\n"
-        generatedCode += "        self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))\n"
-        generatedCode += "        self.lookupNextState = buildLookupNextCell()\n"
-        generatedCode += "    }\n\n"
+        generatedCode += """
+        import Foundation
+        import CRaylib
+
+        struct Simulation {
+        var grid: NDGrid
+        var history: [NDGrid] = []
+        var stateNames: [String] = \(states)
+        var lookupNextState: [UInt64:Int]?
+
+        init(dimensions: [Int]) {
+            self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))
+            self.lookupNextState = buildLookupNextCell()
+        }\n\n
+        """
 
         generateRules()
         generateStep()
@@ -149,7 +153,7 @@ struct SwiftGenerator {
             generatedCode += "        if currentState == \(from)"
 
             if let expr: Expression = rule.condition {
-                generatedCode += " && \(generateLookupExpr(expr))"                
+                generatedCode += " && \(generateExpr(expr, lookup: true))"
             }
             
             if rule.probability < 1 {
@@ -244,53 +248,27 @@ struct SwiftGenerator {
     /// Generate the expression code
     /// 
     /// - Parameter expr: The expression to be converted
+    /// - Parameter lookup: Whether the expression is used for the lookup table (uses neighbors array) or runtime (uses NDGrid directly)
     /// - Returns: The swift code of the expression
-    private func generateExpr(_ expr: Expression) -> String {
+    private func generateExpr(_ expr: Expression, lookup: Bool = false) -> String {
         var generatedExpr: String = ""
-        
-        switch expr {
-            case Expression.binary(let left, let op, let right):
-                generatedExpr += "(\(generateExpr(left)) \(op.rawValue) \(generateExpr(right)))"
-            case Expression.number(let number):
-                generatedExpr += String(number)
-            case Expression.unary(let op, let right):
-                generatedExpr += op.rawValue + " " + generateExpr(right)
-            case Expression.neighborShortcut(let state):
-                if let stateNum = stateMapping[state] {
-                    generatedExpr += "grid.countNeighbors(idx: idx, stateType: \(stateNum))"
-                }
-            case Expression.call(let functionName, let arguments):
-                if functionName == "count_neighbors" && arguments.count == 1 {
-                    if let stateNum = stateMapping[arguments[0]] {
-                        generatedExpr += "grid.countNeighbors(idx: idx, stateType: \(stateNum))"
-                    }
-                }
-        }
-        return generatedExpr
-    }
+        let neighborCount: String = lookup ? "neighbors.filter({ $0 == %d }).count" : "grid.countNeighbors(idx: idx, stateType: %d)"
 
-    /// Generate the expression code for the lookup table evaluation
-    /// 
-    /// - Parameter expr: The expression to be converted
-    /// - Returns: The swift code of the expression
-    private func generateLookupExpr(_ expr: Expression) -> String {
-        var generatedExpr: String = ""
-        
         switch expr {
             case Expression.binary(let left, let op, let right):
-                generatedExpr += "(\(generateLookupExpr(left)) \(op.rawValue) \(generateLookupExpr(right)))"
+                generatedExpr += "(\(generateExpr(left, lookup: lookup)) \(op.rawValue) \(generateExpr(right, lookup: lookup)))"
             case Expression.number(let number):
                 generatedExpr += String(number)
             case Expression.unary(let op, let right):
-                generatedExpr += op.rawValue + " " + generateLookupExpr(right)
+                generatedExpr += op.rawValue + " " + generateExpr(right, lookup: lookup)
             case Expression.neighborShortcut(let state):
                 if let stateNum = stateMapping[state] {
-                    generatedExpr += "neighbors.filter({ $0 == \(stateNum) }).count"
+                    generatedExpr += String(format: neighborCount, stateNum)
                 }
             case Expression.call(let functionName, let arguments):
                 if functionName == "count_neighbors" && arguments.count == 1 {
                     if let stateNum = stateMapping[arguments[0]] {
-                        generatedExpr += "neighbors.filter({ $0 == \(stateNum) }).count"
+                        generatedExpr += String(format: neighborCount, stateNum)
                     }
                 }
         }
