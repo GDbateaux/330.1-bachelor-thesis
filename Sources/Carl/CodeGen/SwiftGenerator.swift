@@ -394,9 +394,18 @@ struct SwiftGenerator {
     /// Get the UI menu overlay code.
     /// 
     /// - Parameter indent: The number of space for indentation
+    /// - Parameter visibilityCheckbox: True if menu show a visibility checkbox instead of an alpha bar else false
     /// - Returns: The menu code
-    private func getMenuCode(indent: Int) -> String {
+    private func getMenuCode(indent: Int, visibilityCheckbox: Bool = false) -> String {
         let s: String = String(repeating: " ", count: indent)
+        let indentAlpha: String = String(repeating: " ", count: indent + 12)
+        let alphaControl: String = visibilityCheckbox
+            ? "\(indentAlpha)var isVisible: Bool = colors[selectedColorPicker].a > 0\n"
+            + "\(indentAlpha)GuiCheckBox(Rectangle(x: popupX + 10, y: popupY + 170, width: 20, height: 20), \"Visible\", &isVisible)\n"
+            + "\(indentAlpha)colors[selectedColorPicker].a = isVisible ? 255 : 0"
+            : "\(indentAlpha)var alphaVal: Float = Float(colors[selectedColorPicker].a) / 255.0\n"
+            + "\(indentAlpha)GuiColorBarAlpha(Rectangle(x: popupX + 10, y: popupY + 170, width: popupWidth - 40, height: 20), \"\", &alphaVal)\n"
+            + "\(indentAlpha)colors[selectedColorPicker].a = UInt8(alphaVal * 255.0)"
 
         return """
         \(s)if showMenu {
@@ -425,9 +434,7 @@ struct SwiftGenerator {
         \(s)        else {
         \(s)            GuiColorPicker(Rectangle(x: popupX + 10, y: popupY + 30, width: popupWidth - 40, height: popupHeight - 100), "", &colors[selectedColorPicker])
         \(s)
-        \(s)            var alphaVal: Float = Float(colors[selectedColorPicker].a) / 255.0
-        \(s)            GuiColorBarAlpha(Rectangle(x: popupX + 10, y: popupY + 170, width: popupWidth - 40, height: 20), "", &alphaVal)
-        \(s)            colors[selectedColorPicker].a = UInt8(alphaVal * 255.0)
+        \(alphaControl)
         \(s)        }
         \(s)    }
         \(s)    else {
@@ -484,10 +491,10 @@ struct SwiftGenerator {
 
     /// Get the end of the rendering loop: menu overlay, frame end, step logic, and window cleanup.
     /// 
-    /// - Parameter indent: The number of space for indentation
+    /// - Parameter visibilityCheckbox: True if menu show a visibility checkbox instead of an alpha bar else false
     /// - Returns: The game loop skeleton code
-    private func getGameLoopSkeletonCode() -> String {
-        return getMenuCode(indent: 8) + "\n"
+    private func getGameLoopSkeletonCode(visibilityCheckbox: Bool = false) -> String {
+        return getMenuCode(indent: 8, visibilityCheckbox: visibilityCheckbox) + "\n"
             + "    EndDrawing()\n"
             + "\n"
             + "    if isRunning {\n"
@@ -717,7 +724,7 @@ struct SwiftGenerator {
                     EndMode3D()
                 }
 
-        \(getGameLoopSkeletonCode())
+        \(getGameLoopSkeletonCode(visibilityCheckbox: true))
         """
     }
 
@@ -798,7 +805,7 @@ struct SwiftGenerator {
 
         while !WindowShouldClose() {
             if !showMenu {
-                \(get2DCameraControlsCode(indent: 12))
+        \(get2DCameraControlsCode(indent: 8))
 
                 if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
                     let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
@@ -882,7 +889,7 @@ struct SwiftGenerator {
 
         while !WindowShouldClose() {
             if !showMenu {
-                \(get2DCameraControlsCode(indent: 12))
+        \(get2DCameraControlsCode(indent: 8))
 
                 if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
                     let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
