@@ -486,16 +486,15 @@ struct SwiftGenerator {
     /// 
     /// - Parameter indent: The number of space for indentation
     /// - Returns: The game loop skeleton code
-    private func getGameLoopSkeletonCode(indent: Int) -> String {
-        let s: String = String(repeating: " ", count: indent)
+    private func getGameLoopSkeletonCode() -> String {
         return getMenuCode(indent: 8) + "\n"
-            + s + "    EndDrawing()\n"
-            + s + "\n"
-            + s + "    if isRunning {\n"
-            + s + "        sim.step()\n"
-            + s + "    }\n"
-            + s + "}\n"
-            + s + "CloseWindow()\n"
+            + "    EndDrawing()\n"
+            + "\n"
+            + "    if isRunning {\n"
+            + "        sim.step()\n"
+            + "    }\n"
+            + "}\n"
+            + "CloseWindow()\n"
     }
 
     /// Get the color palette assignment code for each state.
@@ -514,416 +513,431 @@ struct SwiftGenerator {
         """
     }
 
+    /// Get the camera pan and zoom controls.
+    /// 
+    /// - Parameter indent: The number of space for indentation
+    /// - Returns: The camera controls code
+    private func get2DCameraControlsCode(indent: Int) -> String {
+        let s: String = String(repeating: " ", count: indent)
+        return """
+        \(s)if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
+        \(s)    var delta: Vector2 = GetMouseDelta()
+        \(s)    delta = Vector2Scale(delta, -1.0/camera.zoom)
+        \(s)    camera.target = Vector2Add(camera.target, delta)
+        \(s)}
+        \(s)
+        \(s)let wheel: Float = GetMouseWheelMove()
+        \(s)if wheel != 0 {
+        \(s)    let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
+        \(s)
+        \(s)    camera.offset = GetMousePosition()
+        \(s)    camera.target = mouseWorldPos
+        \(s)
+        \(s)    let scale: Float = 0.2 * wheel
+        \(s)    camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
+        \(s)}
+        """
+    }
+
+    /// Generates the non-visual main for simulation.
+    private mutating func generateHighDimMain() {
+        generatedCode += """
+        let dims: [Int] = \(Array(repeating: gridLength ?? 20, count: dimension))
+        var sim: Simulation = Simulation(dimensions: dims)
+        """
+        generateInitial()
+
+        generatedCode += """
+        print("Info: Rendering not available in \\(dims.count)D automaton.")
+        sim.simulate()\n
+        """
+    }
+
+    /// Generates the 3D main for simulation.
+    private mutating func generate3DMain() {
+        generatedCode += """
+        let dims: [Int] = \(Array(repeating: gridLength ?? 20, count: dimension))
+        var isRunning: Bool = true
+        var sim: Simulation = Simulation(dimensions: dims)
+
+        """
+        generateInitial()
+
+        generatedCode += """
+        let gridW: Int = dims[0]
+        let gridH: Int = dims[1]
+        let gridD: Int = dims.count >= 3 ? dims[2] : 1 
+
+        let screenWidth: Int32 = 800
+        let screenHeight: Int32 = screenWidth
+
+        let worldSize: Float = 40
+        let cellSize: Float = worldSize / Float(max(gridW, max(gridH, gridD)))
+        let layerCellSize: Float = Float(max(2, min(screenWidth / Int32(gridW), screenHeight / Int32(gridH))))
+
+        let stateCount: Int = \(states.count)
+        var colors: [Color] = []
+
+        var showMenu: Bool = false
+        var editionMode: Bool = false
+        var editingLayer: Int = 0
+        var selectedColorPicker: Int = -1
+
+        \(getColorsPalette(transparentZero: true))
+
+        \(getWindowSetupCode(fps: 30))
+        var camera: Camera3D = Camera3D(
+            position: Vector3(x: 100, y: 100, z: 100),
+            target: Vector3(x: 0, y: 0, z: 0),
+            up: Vector3(x: 0, y: 1, z: 0),
+            fovy: 45,
+            projection : Int32(CAMERA_PERSPECTIVE.rawValue)
+        )
+
+        let gridContentW: Float = Float(gridW) * layerCellSize
+        let gridContentH: Float = Float(gridH) * layerCellSize
+        var editCamera: Camera2D = Camera2D(
+            offset: Vector2(x: Float(screenWidth) / 2, y: Float(screenHeight) / 2),
+            target: Vector2(x: gridContentW / 2, y: gridContentH / 2),
+            rotation: 0,
+            zoom: 0.96
+        )
+
+        let cx: Float = Float(gridW) * cellSize / 2
+        let cy: Float = Float(gridH) * cellSize / 2
+        let cz: Float = Float(gridD) * cellSize / 2
+
+        while !WindowShouldClose() {
+            if !showMenu {
+                if IsKeyPressed(Int32(KEY_E.rawValue)) {
+                    editionMode = !editionMode
+                    isRunning = false
+                }
+
+                if editionMode {
+                    if IsKeyPressed(Int32(KEY_UP.rawValue)) {
+                        editingLayer = min(editingLayer + 1, gridD - 1)
+                    }
+                    if IsKeyPressed(Int32(KEY_DOWN.rawValue)) {
+                        editingLayer = max(editingLayer - 1, 0)
+                    }
+
+                    if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
+                        var delta: Vector2 = GetMouseDelta()
+                        delta = Vector2Scale(delta, -1.0/editCamera.zoom)
+                        editCamera.target = Vector2Add(editCamera.target, delta)
+                    }
+
+                    let wheel: Float = GetMouseWheelMove()
+                    if wheel != 0 {
+                        let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), editCamera)
+
+                        editCamera.offset = GetMousePosition()
+                        editCamera.target = mouseWorldPos
+
+                        let scale: Float = 0.2 * wheel
+                        editCamera.zoom = Clamp(expf(logf(editCamera.zoom)+scale), 0.125, 64.0)
+                    }
+
+                    if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
+                        let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), editCamera)
+
+                        let cellX: Int = Int(floor(mousePosition.x / layerCellSize))
+                        let cellY: Int = gridH - 1 - Int(floor(mousePosition.y / layerCellSize))
+
+                        if cellX >= 0 && cellX < gridW && cellY >= 0 && cellY < gridH {
+                            let i: Int = editingLayer * gridH * gridW + cellY * gridW + cellX
+                            let current: Int = sim.grid.getCell(i) ?? 0
+                            sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
+                        }
+                    }
+                }
+                else {
+                    if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
+                        UpdateCamera(&camera, Int32(CAMERA_THIRD_PERSON.rawValue));
+                    }
+
+                    let wheel: Float = GetMouseWheelMove()
+                    if wheel != 0 {
+                        let cameraPos: Vector3 = camera.position
+                        let dist: Float = sqrt(cameraPos.x * cameraPos.x + cameraPos.y * cameraPos.y + cameraPos.z * cameraPos.z)
+                        let newDist: Float = max(dist - wheel * 20, 1.0)
+                        camera.position = Vector3Scale(cameraPos, newDist / dist)
+                    }
+
+                    if IsKeyPressed(Int32(KEY_SPACE.rawValue)) {
+                        isRunning = !isRunning
+                    }
+                }
+
+                if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
+                    sim.step()
+                }
+
+                if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
+                    sim.stepBack()
+                }
+            }
+
+            BeginDrawing()
+                ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
+
+                if editionMode {
+                    BeginMode2D(editCamera)
+                        let baseZ: Int = editingLayer * gridW * gridH
+                        for y: Int in 0..<gridH {
+                            for x: Int in 0..<gridW {
+                                let i: Int = baseZ + y * gridW + x
+                                let state: Int = sim.grid.getCell(i) ?? 0
+                                let color: Color = colors[state]
+                                if color.a > 0 {
+                                    DrawRectangle(Int32(Float(x) * layerCellSize), Int32(Float(gridH - 1 - y) * layerCellSize), Int32(layerCellSize), Int32(layerCellSize), color)
+                                }
+                            }
+                        }
+                    EndMode2D()
+                    DrawText("Layer: \\(editingLayer + 1)/\\(gridD)  (UP/DOWN)", 70, 15, 20, Color(r: 255, g: 255, b: 255, a: 255))
+                }
+                else {
+                    BeginMode3D(camera)
+                        for i: Int in 0..<sim.grid.totalCellsCount {
+                            let state: Int = sim.grid.getCell(i) ?? 0
+                            let color: Color = colors[state]
+                            if color.a == 0 {
+                                continue
+                            }
+
+                            let coords: [Int] = sim.grid.coordinates(linearIndex: i)
+                            let x: Int = coords[0]
+                            let y: Int = coords[1]
+                            let z: Int = coords[2]
+
+                            DrawCube(Vector3(x: Float(x) * cellSize - cx, y: Float(y) * cellSize - cy, z: Float(z) * cellSize - cz), cellSize, cellSize, cellSize, color)
+                        }
+                    EndMode3D()
+                }
+
+        \(getGameLoopSkeletonCode())
+        """
+    }
+
+    /// Generates the hexagonal main for simulation.
+    private mutating func generateHexMain() {
+        // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
+        generatedCode += """
+        let dims: [Int] = \(Array(repeating: gridLength ?? 200, count: dimension))
+        var isRunning: Bool = true
+        var sim: Simulation = Simulation(dimensions: dims)
+
+        """
+        generateInitial()
+
+        generatedCode += """
+        let screenWidth: Int32 = 800;
+        let screenHeight: Int32 = screenWidth;
+
+        let gridW: Int = dims.count >= 2 ? dims[1] : dims[0]
+        let gridH: Int = dims.count >= 2 ? dims[0] : 1
+        let hexSize: Float = max(20.0, min(Float(screenWidth / Int32(gridW)), Float(screenHeight / Int32(gridH))))
+        let radius: Float = hexSize / sqrtf(3.0) // (2 / sqrtf(3.0)) * (hexSize / 2)
+
+        let stateCount: Int = \(states.count)
+        var colors: [Color] = []
+
+        var showMenu: Bool = false
+        var selectedColorPicker: Int = -1
+
+        \(getColorsPalette(transparentZero: false))
+
+        // --- Hex helpers ---
+        // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
+        func axialToCoord(_ q: Int, _ r: Int) -> (Int, Int) {
+            let parity: Int = r & 1
+            let col: Int = q + (r - parity) / 2
+            let row: Int = r
+            return (col, row)
+        }
+
+        func axialRound(_ qFloat: Float, _ rFloat: Float) -> (Int, Int) {
+            let sFloat: Float = -qFloat - rFloat
+            var q: Float = round(qFloat)
+            var r: Float = round(rFloat)
+            let s: Float = round(sFloat)
+
+            let qDiff: Float = abs(q - qFloat)
+            let rDiff: Float = abs(r - rFloat)
+            let sdiff: Float = abs(s - sFloat)
+
+            if qDiff > rDiff && qDiff > sdiff {
+                q = -r-s
+            }
+            else if rDiff > sdiff {
+                r = -q-s
+            }
+            return (Int(q), Int(r))
+        }
+
+        func pixelToHexCoord(x: Float, y: Float) -> (Int, Int) {
+            let x: Float = x / radius
+            let y: Float = y / radius
+
+            let q: Float = (sqrt(3.0) / 3 * x  - 1.0 / 3.0 * y)
+            let r: Float = (2.0 / 3.0 * y)
+            let (roundQ, roundR) = axialRound(q, r)
+            return axialToCoord(roundQ, roundR)
+        }
+
+        // --- Display ---
+        \(getWindowSetupCode(fps: 30))
+        var camera: Camera2D = Camera2D(
+            offset: Vector2(x: 0, y: 0),
+            target: Vector2(x: 0, y: 0),
+            rotation: 0,
+            zoom: 1.0
+        )
+
+        while !WindowShouldClose() {
+            if !showMenu {
+                \(get2DCameraControlsCode(indent: 12))
+
+                if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
+                    let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
+                    let (hexX, hexY) = pixelToHexCoord(x: mousePosition.x, y: mousePosition.y)
+
+                    if hexX >= 0 && hexX < gridW && hexY >= 0 && hexY < gridH {
+                        let i: Int = hexY * gridW + hexX
+                        let current: Int = sim.grid.getCell(i) ?? 0
+                        sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
+                    }
+                }
+
+        \(getStepControlsCode(indent: 8))
+            }
+
+            BeginDrawing()
+                ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
+
+                BeginMode2D(camera)
+                    let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
+                    var x: Int = 0
+                    var y: Int = 0
+                    for i: Int in 0..<sim.grid.totalCellsCount {
+                        let state: Int = sim.grid.getCell(i) ?? 0
+                        let color: Color = colors[state]
+
+                        if y % 2 == 0 {
+                            DrawPoly(Vector2(x: Float(x) * hexSize, y: Float(y) * 1.5 * radius), 6, radius, 30, color)
+                        }
+                        else {
+                            DrawPoly(Vector2(x: Float(x) * hexSize + hexSize / 2, y: Float(y) * 1.5 * radius), 6, radius, 30, color)
+                        }
+
+                        x += 1
+                        if x % width == 0 && i != 0 {
+                            y += 1
+                            x = 0
+                        }
+                    }
+                EndMode2D()
+
+        \(getGameLoopSkeletonCode())
+        """
+    }
+
+    /// Generates the 2D main for simulation.
+    private mutating func generate2DMain() {
+        // Inspired by "Raylib examples"
+        // Original source: https://www.raylib.com/examples.html
+        generatedCode += """
+        let dims: [Int] = \(Array(repeating: gridLength ?? 200, count: dimension))
+        var isRunning: Bool = true
+        var sim: Simulation = Simulation(dimensions: dims)
+
+        """
+        generateInitial()
+
+        generatedCode += """
+        let screenWidth: Int32 = 800;
+        let screenHeight: Int32 = screenWidth;
+
+        let gridW: Int = dims.count >= 2 ? dims[1] : dims[0]
+        let gridH: Int = dims.count >= 2 ? dims[0] : 1
+        let cellSize: Int32 = max(2, min(screenWidth / Int32(gridW), screenHeight / Int32(gridH)))
+
+        let stateCount: Int = \(states.count)
+        var colors: [Color] = []
+
+        var showMenu: Bool = false
+        var selectedColorPicker: Int = -1
+
+        \(getColorsPalette(transparentZero: false))
+
+        \(getWindowSetupCode(fps: 60))
+        var camera: Camera2D = Camera2D(
+            offset: Vector2(x: 0, y: 0),
+            target: Vector2(x: 0, y: 0),
+            rotation: 0,
+            zoom: 1.0
+        )
+
+        while !WindowShouldClose() {
+            if !showMenu {
+                \(get2DCameraControlsCode(indent: 12))
+
+                if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
+                    let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
+
+                    let cellX: Int = Int(floor(mousePosition.x / Float(cellSize)))
+                    let cellY: Int = Int(floor(mousePosition.y / Float(cellSize)))
+
+                    if cellX >= 0 && cellX < gridW && cellY >= 0 && cellY < gridH {
+                        let i: Int = cellY * gridW + cellX
+                        let current: Int = sim.grid.getCell(i) ?? 0
+                        sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
+                    }
+                }
+
+        \(getStepControlsCode(indent: 8))
+            }
+
+            BeginDrawing()
+                ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
+
+                BeginMode2D(camera)
+                    let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
+                    var x: Int = 0
+                    var y: Int = 0
+                    for i: Int in 0..<sim.grid.totalCellsCount {
+                        let state: Int = sim.grid.getCell(i) ?? 0
+                        let color: Color = colors[state]
+                        DrawRectangle(Int32(x)*cellSize, Int32(y)*cellSize, cellSize, cellSize, color)
+                        x += 1
+                        if x % width == 0 && i != 0 {
+                            y += 1
+                            x = 0
+                        }
+                    }
+                EndMode2D()
+
+        \(getGameLoopSkeletonCode())
+        """
+    }
+
     /// Generates the entry point of the program
     private mutating func generateMain() {
         generatedCode += "\n"
 
         if dimension > 3 {
-            generatedCode += """
-            let dims: [Int] = \(Array(repeating: gridLength ?? 20, count: dimension))
-            var sim: Simulation = Simulation(dimensions: dims)
-            """
-            generateInitial()
-
-            generatedCode += """
-            print("Info: Rendering not available in \\(dims.count)D automaton.")
-            sim.simulate()\n
-            """
+            generateHighDimMain()
         }
         else if dimension == 3 {
-            generatedCode += """
-            let dims: [Int] = \(Array(repeating: gridLength ?? 20, count: dimension))
-            var isRunning: Bool = true
-            var sim: Simulation = Simulation(dimensions: dims)
-
-            """
-            generateInitial()
-            
-            generatedCode += """
-            let gridW: Int = dims[0]
-            let gridH: Int = dims[1]
-            let gridD: Int = dims.count >= 3 ? dims[2] : 1 
-
-            let screenWidth: Int32 = 800
-            let screenHeight: Int32 = screenWidth
-
-            let worldSize: Float = 40
-            let cellSize: Float = worldSize / Float(max(gridW, max(gridH, gridD)))
-            let layerCellSize: Float = Float(max(2, min(screenWidth / Int32(gridW), screenHeight / Int32(gridH))))
-
-            let stateCount: Int = \(states.count)
-            var colors: [Color] = []
-
-            var showMenu: Bool = false
-            var editionMode: Bool = false
-            var editingLayer: Int = 0
-            var selectedColorPicker: Int = -1
-
-            \(getColorsPalette(transparentZero: true))
-
-            \(getWindowSetupCode(fps: 60))
-            var camera: Camera3D = Camera3D(
-                position: Vector3(x: 100, y: 100, z: 100),
-                target: Vector3(x: 0, y: 0, z: 0),
-                up: Vector3(x: 0, y: 1, z: 0),
-                fovy: 45,
-                projection : Int32(CAMERA_PERSPECTIVE.rawValue)
-            )
-
-            let gridContentW: Float = Float(gridW) * layerCellSize
-            let gridContentH: Float = Float(gridH) * layerCellSize
-            var editCamera: Camera2D = Camera2D(
-                offset: Vector2(x: Float(screenWidth) / 2, y: Float(screenHeight) / 2),
-                target: Vector2(x: gridContentW / 2, y: gridContentH / 2),
-                rotation: 0,
-                zoom: 0.96
-            )
-
-            let cx: Float = Float(gridW) * cellSize / 2
-            let cy: Float = Float(gridH) * cellSize / 2
-            let cz: Float = Float(gridD) * cellSize / 2
-
-            while !WindowShouldClose() {
-                if !showMenu {
-                    if IsKeyPressed(Int32(KEY_E.rawValue)) {
-                        editionMode = !editionMode
-                        isRunning = false
-                    }
-
-                    if editionMode {
-                        if IsKeyPressed(Int32(KEY_UP.rawValue)) {
-                            editingLayer = min(editingLayer + 1, gridD - 1)
-                        }
-                        if IsKeyPressed(Int32(KEY_DOWN.rawValue)) {
-                            editingLayer = max(editingLayer - 1, 0)
-                        }
-
-                        if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
-                            var delta: Vector2 = GetMouseDelta()
-                            delta = Vector2Scale(delta, -1.0/editCamera.zoom)
-                            editCamera.target = Vector2Add(editCamera.target, delta)
-                        }
-
-                        let wheel: Float = GetMouseWheelMove()
-                        if wheel != 0 {
-                            let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), editCamera)
-
-                            editCamera.offset = GetMousePosition()
-                            editCamera.target = mouseWorldPos
-
-                            let scale: Float = 0.2 * wheel
-                            editCamera.zoom = Clamp(expf(logf(editCamera.zoom)+scale), 0.125, 64.0)
-                        }
-
-                        if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
-                            let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), editCamera)
-
-                            let cellX: Int = Int(floor(mousePosition.x / layerCellSize))
-                            let cellY: Int = gridH - 1 - Int(floor(mousePosition.y / layerCellSize))
-
-                            if cellX >= 0 && cellX < gridW && cellY >= 0 && cellY < gridH {
-                                let i: Int = editingLayer * gridH * gridW + cellY * gridW + cellX
-                                let current: Int = sim.grid.getCell(i) ?? 0
-                                sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
-                            }
-                        }
-                    }
-                    else {
-                        if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
-                            UpdateCamera(&camera, Int32(CAMERA_THIRD_PERSON.rawValue));
-                        }
-
-                        let wheel: Float = GetMouseWheelMove()
-                        if wheel != 0 {
-                            let cameraPos: Vector3 = camera.position
-                            let dist: Float = sqrt(cameraPos.x * cameraPos.x + cameraPos.y * cameraPos.y + cameraPos.z * cameraPos.z)
-                            let newDist: Float = max(dist - wheel * 20, 1.0)
-                            camera.position = Vector3Scale(cameraPos, newDist / dist)
-                        }
-
-                        if IsKeyPressed(Int32(KEY_SPACE.rawValue)) {
-                            isRunning = !isRunning
-                        }
-                    }
-
-                    if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
-                        sim.step()
-                    }
-
-                    if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
-                        sim.stepBack()
-                    }
-                }
-
-                BeginDrawing()
-                    ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
-
-                    if editionMode {
-                        BeginMode2D(editCamera)
-                            let baseZ: Int = editingLayer * gridW * gridH
-                            for y: Int in 0..<gridH {
-                                for x: Int in 0..<gridW {
-                                    let i: Int = baseZ + y * gridW + x
-                                    let state: Int = sim.grid.getCell(i) ?? 0
-                                    let color: Color = colors[state]
-                                    if color.a > 0 {
-                                        DrawRectangle(Int32(Float(x) * layerCellSize), Int32(Float(gridH - 1 - y) * layerCellSize), Int32(layerCellSize), Int32(layerCellSize), color)
-                                    }
-                                }
-                            }
-                        EndMode2D()
-                        DrawText("Layer: \\(editingLayer + 1)/\\(gridD)  (UP/DOWN)", 70, 15, 20, Color(r: 255, g: 255, b: 255, a: 255))
-                    }
-                    else {
-                        BeginMode3D(camera)
-                            for i: Int in 0..<sim.grid.totalCellsCount {
-                                let state: Int = sim.grid.getCell(i) ?? 0
-                                let color: Color = colors[state]
-                                if color.a == 0 { 
-                                    continue 
-                                }
-
-                                let coords: [Int] = sim.grid.coordinates(linearIndex: i)
-                                let x: Int = coords[0]
-                                let y: Int = coords[1]
-                                let z: Int = coords[2]
-
-                                DrawCube(Vector3(x: Float(x) * cellSize - cx, y: Float(y) * cellSize - cy, z: Float(z) * cellSize - cz), cellSize, cellSize, cellSize, color)
-                            }
-                        EndMode3D()
-                    }
-
-            \(getGameLoopSkeletonCode(indent: 0))
-            """
+            generate3DMain()
         }
         else if neighborhoodType == "Hexagonal" {
-            // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
-            generatedCode += """
-            let dims: [Int] = \(Array(repeating: gridLength ?? 200, count: dimension))
-            var isRunning: Bool = true
-            var sim: Simulation = Simulation(dimensions: dims)
-
-            """
-            generateInitial()
-
-            generatedCode += """
-            let screenWidth: Int32 = 800;
-            let screenHeight: Int32 = screenWidth;
-
-            let gridW: Int = dims.count >= 2 ? dims[1] : dims[0]
-            let gridH: Int = dims.count >= 2 ? dims[0] : 1
-            let hexSize: Float = max(20.0, min(Float(screenWidth / Int32(gridW)), Float(screenHeight / Int32(gridH))))
-            let radius: Float = hexSize / sqrtf(3.0) // (2 / sqrtf(3.0)) * (hexSize / 2)
-
-            let stateCount: Int = \(states.count)
-            var colors: [Color] = []
-
-            var showMenu: Bool = false
-            var selectedColorPicker: Int = -1
-
-            \(getColorsPalette(transparentZero: false))
-
-            // --- Hex helpers ---
-            // Hex grid math adapted from https://www.redblobgames.com/grids/hexagons/
-            func axialToCoord(_ q: Int, _ r: Int) -> (Int, Int) {
-                let parity: Int = r & 1
-                let col: Int = q + (r - parity) / 2
-                let row: Int = r
-                return (col, row)
-            }
-
-            func axialRound(_ qFloat: Float, _ rFloat: Float) -> (Int, Int) {
-                let sFloat: Float = -qFloat - rFloat
-                var q: Float = round(qFloat)
-                var r: Float = round(rFloat)
-                let s: Float = round(sFloat)
-
-                let qDiff: Float = abs(q - qFloat)
-                let rDiff: Float = abs(r - rFloat)
-                let sdiff: Float = abs(s - sFloat)
-
-                if qDiff > rDiff && qDiff > sdiff {
-                    q = -r-s
-                }
-                else if rDiff > sdiff {
-                    r = -q-s
-                }
-                return (Int(q), Int(r))
-            }
-
-            func pixelToHexCoord(x: Float, y: Float) -> (Int, Int) {
-                let x: Float = x / radius
-                let y: Float = y / radius
-
-                let q: Float = (sqrt(3.0) / 3 * x  - 1.0 / 3.0 * y)
-                let r: Float = (2.0 / 3.0 * y)
-                let (roundQ, roundR) = axialRound(q, r)
-                return axialToCoord(roundQ, roundR)
-            }
-
-            // --- Display ---
-            \(getWindowSetupCode(fps: 60))
-            var camera: Camera2D = Camera2D(
-                offset: Vector2(x: 0, y: 0),
-                target: Vector2(x: 0, y: 0),
-                rotation: 0,
-                zoom: 1.0
-            )
-
-            while !WindowShouldClose() {
-                if !showMenu {
-                    if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
-                        var delta: Vector2 = GetMouseDelta()
-                        delta = Vector2Scale(delta, -1.0/camera.zoom)
-                        camera.target = Vector2Add(camera.target, delta)
-                    }
-
-                    let wheel: Float = GetMouseWheelMove()
-                    if wheel != 0 {
-                        let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
-
-                        camera.offset = GetMousePosition()
-                        camera.target = mouseWorldPos
-
-                        let scale: Float = 0.2 * wheel
-                        camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
-                    }
-
-                    if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
-                        let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
-                        let (hexX, hexY) = pixelToHexCoord(x: mousePosition.x, y: mousePosition.y)
-
-                        if hexX >= 0 && hexX < gridW && hexY >= 0 && hexY < gridH {
-                            let i: Int = hexY * gridW + hexX
-                            let current: Int = sim.grid.getCell(i) ?? 0
-                            sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
-                        }
-                    }
-
-            \(getStepControlsCode(indent: 8))
-                }
-
-                BeginDrawing()
-                    ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
-
-                    BeginMode2D(camera)
-                        let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
-                        var x: Int = 0
-                        var y: Int = 0
-                        for i: Int in 0..<sim.grid.totalCellsCount {
-                            let state: Int = sim.grid.getCell(i) ?? 0
-                            let color: Color = colors[state]
-
-                            if y % 2 == 0 {
-                                DrawPoly(Vector2(x: Float(x) * hexSize, y: Float(y) * 1.5 * radius), 6, radius, 30, color)
-                            }
-                            else {
-                                DrawPoly(Vector2(x: Float(x) * hexSize + hexSize / 2, y: Float(y) * 1.5 * radius), 6, radius, 30, color)
-                            }
-
-                            x += 1
-                            if x % width == 0 && i != 0 {
-                                y += 1
-                                x = 0
-                            }
-                        }
-                    EndMode2D()
-
-            \(getGameLoopSkeletonCode(indent: 0))
-            """
+            generateHexMain()
         }
         else {
-            // Inspired by "Raylib examples"
-            // Original source: https://www.raylib.com/examples.html
-            generatedCode += """
-            let dims: [Int] = \(Array(repeating: gridLength ?? 200, count: dimension))
-            var isRunning: Bool = true
-            var sim: Simulation = Simulation(dimensions: dims)
-
-            """
-            generateInitial()
-            
-            generatedCode += """
-            let screenWidth: Int32 = 800;
-            let screenHeight: Int32 = screenWidth;
-
-            let gridW: Int = dims.count >= 2 ? dims[1] : dims[0]
-            let gridH: Int = dims.count >= 2 ? dims[0] : 1
-            let cellSize: Int32 = max(2, min(screenWidth / Int32(gridW), screenHeight / Int32(gridH)))
-
-            let stateCount: Int = \(states.count)
-            var colors: [Color] = []
-
-            var showMenu: Bool = false
-            var selectedColorPicker: Int = -1
-
-            \(getColorsPalette(transparentZero: false))
-
-            \(getWindowSetupCode(fps: 60))
-            var camera: Camera2D = Camera2D(
-                offset: Vector2(x: 0, y: 0),
-                target: Vector2(x: 0, y: 0),
-                rotation: 0,
-                zoom: 1.0
-            )
-
-            while !WindowShouldClose() {
-                if !showMenu {
-                    if IsMouseButtonDown(Int32(MOUSE_BUTTON_LEFT.rawValue)) {
-                        var delta: Vector2 = GetMouseDelta()
-                        delta = Vector2Scale(delta, -1.0/camera.zoom)
-                        camera.target = Vector2Add(camera.target, delta)
-                    }
-
-                    let wheel: Float = GetMouseWheelMove()
-                    if wheel != 0 {
-                        let mouseWorldPos: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
-
-                        camera.offset = GetMousePosition()
-                        camera.target = mouseWorldPos
-
-                        let scale: Float = 0.2 * wheel
-                        camera.zoom = Clamp(expf(logf(camera.zoom)+scale), 0.125, 64.0)
-                    }
-
-                    if IsMouseButtonPressed(Int32(MOUSE_BUTTON_RIGHT.rawValue)) {
-                        let mousePosition: Vector2 = GetScreenToWorld2D(GetMousePosition(), camera)
-
-                        let cellX: Int = Int(floor(mousePosition.x / Float(cellSize)))
-                        let cellY: Int = Int(floor(mousePosition.y / Float(cellSize)))
-
-                        if cellX >= 0 && cellX < gridW && cellY >= 0 && cellY < gridH {
-                            let i: Int = cellY * gridW + cellX
-                            let current: Int = sim.grid.getCell(i) ?? 0
-                            sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
-                        }
-                    }
-
-            \(getStepControlsCode(indent: 8))
-                }
-
-                BeginDrawing()
-                    ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
-
-                    BeginMode2D(camera)
-                        let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
-                        var x: Int = 0
-                        var y: Int = 0
-                        for i: Int in 0..<sim.grid.totalCellsCount {
-                            let state: Int = sim.grid.getCell(i) ?? 0
-                            let color: Color = colors[state]
-                            DrawRectangle(Int32(x)*cellSize, Int32(y)*cellSize, cellSize, cellSize, color)
-                            x += 1
-                            if x % width == 0 && i != 0 {
-                                y += 1
-                                x = 0
-                            }
-                        }
-                    EndMode2D()
-
-            \(getGameLoopSkeletonCode(indent: 0))
-            """
+            generate2DMain()
         }
-
     }
 }
