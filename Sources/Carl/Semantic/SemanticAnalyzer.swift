@@ -76,7 +76,7 @@ struct SemanticAnalyzer {
     }
 
     /// Validates rules.
-    private func verifyRules() throws{
+    private func verifyRules() throws {
         let states: [String] = AST.world.states
         let rules: [Rule] = AST.rules
 

@@ -1,1 +1,1 @@
-Parser error: Expected a number (integer or float) for probability of state in initial block.
+Parser error on line 14, column 15: Expected a number (integer or float) for probability of state in initial block.

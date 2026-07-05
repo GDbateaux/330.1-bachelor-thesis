@@ -1,1 +1,1 @@
-Parser error: Name of the automata is missing
+Parser error on line 2, column 10: Name of the automata is missing
