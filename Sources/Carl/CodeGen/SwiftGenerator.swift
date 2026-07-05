@@ -481,10 +481,12 @@ struct SwiftGenerator {
         \(s)
         \(s)if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
         \(s)    sim.step()
+        \(s)    stepCount += 1
         \(s)}
         \(s)
         \(s)if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
         \(s)    sim.stepBack()
+        \(s)    stepCount -= stepCount > 0 ? 1 : 0
         \(s)}
         """
     }
@@ -494,11 +496,13 @@ struct SwiftGenerator {
     /// - Parameter visibilityCheckbox: True if menu show a visibility checkbox instead of an alpha bar else false
     /// - Returns: The game loop skeleton code
     private func getGameLoopSkeletonCode(visibilityCheckbox: Bool = false) -> String {
-        return getMenuCode(indent: 8, visibilityCheckbox: visibilityCheckbox) + "\n"
+        return getHUDCode(indent: 8) + "\n"
+            + getMenuCode(indent: 8, visibilityCheckbox: visibilityCheckbox) + "\n"
             + "    EndDrawing()\n"
             + "\n"
             + "    if isRunning {\n"
             + "        sim.step()\n"
+            + "        stepCount += 1\n"
             + "    }\n"
             + "}\n"
             + "CloseWindow()\n"
@@ -518,6 +522,15 @@ struct SwiftGenerator {
             }
         }
         """
+    }
+
+    /// Get the HUD overlay code displaying step count.
+    ///
+    /// - Parameter indent: The number of space for indentation
+    /// - Returns: The HUD code
+    private func getHUDCode(indent: Int) -> String {
+        let s: String = String(repeating: " ", count: indent)
+        return "\(s)DrawText(\"Step: \\(stepCount)\", 10, GetScreenHeight() - 30, 20, Color(r: 200, g: 200, b: 200, a: 255))\n"
     }
 
     /// Get the camera pan and zoom controls.
@@ -589,6 +602,7 @@ struct SwiftGenerator {
         var editionMode: Bool = false
         var editingLayer: Int = 0
         var selectedColorPicker: Int = -1
+        var stepCount: Int = 0
 
         \(getColorsPalette(transparentZero: true))
 
@@ -679,10 +693,12 @@ struct SwiftGenerator {
 
                 if !isRunning && IsKeyPressed(Int32(KEY_RIGHT.rawValue)) {
                     sim.step()
+                    stepCount += 1
                 }
 
                 if !isRunning && IsKeyPressed(Int32(KEY_LEFT.rawValue)) {
                     sim.stepBack()
+                    stepCount -= stepCount > 0 ? 1 : 0
                 }
             }
 
@@ -753,6 +769,7 @@ struct SwiftGenerator {
 
         var showMenu: Bool = false
         var selectedColorPicker: Int = -1
+        var stepCount: Int = 0
 
         \(getColorsPalette(transparentZero: false))
 
@@ -876,6 +893,7 @@ struct SwiftGenerator {
 
         var showMenu: Bool = false
         var selectedColorPicker: Int = -1
+        var stepCount: Int = 0
 
         \(getColorsPalette(transparentZero: false))
 
