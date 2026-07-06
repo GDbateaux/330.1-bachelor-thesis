@@ -91,7 +91,7 @@ This produces `tracy-profiler.exe` in `tracy/profiler/build/Release/`.
 1. Start `tracy-profiler.exe`
 2. Build and run Carl:
    ```bash
-   swift run examples/game-of-life.carl -o game-of-life.exe
+   swift run Carl examples/game-of-life.carl -o game-of-life.exe
    game-of-life.exe
    ```
 3. Click "Connect" in the profiler.

@@ -14,7 +14,7 @@ let package = Package(
       sources: ["TracyClient.cpp"],
       publicHeadersPath: "include",
       cxxSettings: [
-        .define("TRACY_ENABLE", to: "1"), // TODO pull in from environment
+        .define("TRACY_ENABLE", to: "1"),
         .headerSearchPath("."),
         .headerSearchPath("tracy"),
       ]
@@ -26,7 +26,7 @@ let package = Package(
       sources: ["TracySwiftShim.c"],
       publicHeadersPath: "include",
       cSettings: [
-        .define("TRACY_ENABLE", to: "1"), // TODO pull in from environment
+        .define("TRACY_ENABLE", to: "1"),
       ],
       cxxSettings: [
         .define("TRACY_ENABLE", to: "1"),
