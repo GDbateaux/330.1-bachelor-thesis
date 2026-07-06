@@ -21,10 +21,14 @@ struct Carl: ParsableCommand {
     @Option(name: .shortAndLong, help: "Grid length for each dimension (default: 200 for 2D, 20 for 3D+).")
     var gridLength: Int?
 
+    /// Number of simulation steps per rendered frame.
+    @Option(help: "Number of simulation steps per rendered frame (default: 1).")
+    var stepsPerFrame: Int = 1
+
     /// Run the command.
     mutating func run() throws {
         let sourceCode: String = try getSourceCode(sourceFile: sourceFile)
-        let compiler: Compiler = Compiler(source: sourceCode, gridLength: gridLength)
+        let compiler: Compiler = Compiler(source: sourceCode, gridLength: gridLength, stepsPerFrame: stepsPerFrame)
 
         let generatedCode: String = try compiler.compile()
         let buildDir: URL = carlBuildDirectory()

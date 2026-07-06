@@ -39,6 +39,7 @@ swift run Carl file-path.carl -o file-path-output
 | `<source-file>`       | Path to the Carl source file (`.carl`).                                                      |
 | `-o`, `--output`      | Output executable path.                                                                      |
 | `-g`, `--grid-length` | Grid size along each dimension. Defaults to `200` for 2D automata and `20` for 3D or higher. |
+| `--steps-per-frame`   | Number of simulation steps between texture updates (2D only). Defaults to `1`.               |
 | `--clean`             | Clean the build cache before recompiling.                                                    |
 
 ## Language documentation
