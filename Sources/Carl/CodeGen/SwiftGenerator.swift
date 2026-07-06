@@ -63,6 +63,9 @@ struct SwiftGenerator {
         generatedCode += """
         import Foundation
         import CRaylib
+        import TracyC
+
+        // Tracy integration: https://compositorapp.com/blog/2026-02-07/Tracy/
 
         struct Simulation {
         var grid: NDGrid
@@ -179,14 +182,21 @@ struct SwiftGenerator {
     private mutating func generateNextCell() {
         generatedCode += """
             private func nextCell(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> Int {
+                let zone: TracySwiftZoneCtx = TracySwiftZoneBegin("nextCell")
+                defer { TracySwiftZoneEnd(zone) }
                 if let lookup = lookupNextState {
+                    let zone_lookup: TracySwiftZoneCtx = TracySwiftZoneBegin("nextCell.lookup")
                     if let key = getLookupKey(grid: grid, idx: idx, neighborBuffer: &neighborBuffer) {
                         if let nextState = lookup[key] {
+                            TracySwiftZoneEnd(zone_lookup)
                             return nextState
                         }
                     }
+                    TracySwiftZoneEnd(zone_lookup)
                 }
 
+                let zone_rules: TracySwiftZoneCtx = TracySwiftZoneBegin("nextCell.rules")
+                defer { TracySwiftZoneEnd(zone_rules) }
                 let currentState: Int = grid.getCell(idx) ?? 0
 
         \(rulesSwiftCode())
@@ -228,10 +238,12 @@ struct SwiftGenerator {
     private mutating func generateGetLookupKey() {
         generatedCode += """
             private func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> UInt64? {
+                let zone: TracySwiftZoneCtx = TracySwiftZoneBegin("getLookupKey")
+                defer { TracySwiftZoneEnd(zone) }
                 guard let currentState = grid.getCell(idx) else {
                     return nil
                 }
-
+                
                 let neighborsCount: Int = grid.getNeighbors(idx: idx, neighborBuffer: &neighborBuffer)
                 if neighborsCount != grid.numNeighbors {
                     return nil
@@ -241,9 +253,11 @@ struct SwiftGenerator {
                 let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
                 var key: UInt64 = UInt64(currentState)
 
+                let zone_pack: TracySwiftZoneCtx = TracySwiftZoneBegin("getLookupKey.pack")
                 for i: Int in 0..<neighborsCount {
                     key = (key << bitsPerState) | UInt64(neighborBuffer[i])
                 }
+                TracySwiftZoneEnd(zone_pack)
                 return key
             }\n\n
         """
@@ -283,6 +297,7 @@ struct SwiftGenerator {
     private mutating func generateStep() {
         generatedCode += """
                 mutating func step() {
+                    let stepZone: TracySwiftZoneCtx = TracySwiftZoneBegin("step")
                     let previousGridState: NDGrid = self.grid
                     var neighborBuffer: [Int] = [Int](repeating: 0, count: grid.numNeighbors)
                     
@@ -291,10 +306,13 @@ struct SwiftGenerator {
                         history.removeFirst()
                     }
 
+                    let cellLoopZone: TracySwiftZoneCtx = TracySwiftZoneBegin("step.cellLoop")
                     for i: Int in 0..<grid.totalCellsCount {
                         let newState: Int = nextCell(grid: previousGridState, idx: i, neighborBuffer: &neighborBuffer)
                         self.grid.setCell(idx: i, stateNum: newState)
                     }
+                    TracySwiftZoneEnd(cellLoopZone)
+                    TracySwiftZoneEnd(stepZone)
                 }
 
                 mutating func stepBack() {
@@ -502,12 +520,14 @@ struct SwiftGenerator {
     private func getGameLoopSkeletonCode(visibilityCheckbox: Bool = false) -> String {
         return getHUDCode(indent: 8) + "\n"
             + getMenuCode(indent: 8, visibilityCheckbox: visibilityCheckbox) + "\n"
+            + "    TracySwiftZoneEnd(drawingZone)\n"
             + "    EndDrawing()\n"
             + "\n"
             + "    if isRunning {\n"
             + "        sim.step()\n"
             + "        stepCount += 1\n"
             + "    }\n"
+            + "    TracySwiftFrameMarkEnd(\"frame\")\n"
             + "}\n"
             + "CloseWindow()\n"
     }
@@ -633,6 +653,7 @@ struct SwiftGenerator {
         let cz: Float = Float(gridD) * cellSize / 2
 
         while !WindowShouldClose() {
+            TracySwiftFrameMarkStart("frame")
             if !showMenu {
                 if IsKeyPressed(Int32(KEY_E.rawValue)) {
                     editionMode = !editionMode
@@ -707,6 +728,7 @@ struct SwiftGenerator {
             }
 
             BeginDrawing()
+                let drawingZone: TracySwiftZoneCtx = TracySwiftZoneBegin("drawing")
                 ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
 
                 if editionMode {
@@ -825,6 +847,7 @@ struct SwiftGenerator {
         )
 
         while !WindowShouldClose() {
+            TracySwiftFrameMarkStart("frame")
             if !showMenu {
         \(get2DCameraControlsCode(indent: 8))
 
@@ -843,6 +866,7 @@ struct SwiftGenerator {
             }
 
             BeginDrawing()
+                let drawingZone: TracySwiftZoneCtx = TracySwiftZoneBegin("drawing")
                 ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
 
                 BeginMode2D(camera)
@@ -917,6 +941,7 @@ struct SwiftGenerator {
         let texture: Texture2D = LoadTextureFromImage(image)
 
         while !WindowShouldClose() {
+            TracySwiftFrameMarkStart("frame")
             if !showMenu {
         \(get2DCameraControlsCode(indent: 8))
 
@@ -943,6 +968,7 @@ struct SwiftGenerator {
             }
 
             BeginDrawing()
+                let drawingZone: TracySwiftZoneCtx = TracySwiftZoneBegin("drawing")
                 ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
 
                 BeginMode2D(camera)
@@ -951,6 +977,7 @@ struct SwiftGenerator {
 
         \(getHUDCode(indent: 8))
         \(getMenuCode(indent: 8))
+            TracySwiftZoneEnd(drawingZone)
             EndDrawing()
 
             if isRunning {
@@ -959,12 +986,15 @@ struct SwiftGenerator {
             }
 
             if stepCount % \(stepsPerFrame) == 0  {
+                let textureZone: TracySwiftZoneCtx = TracySwiftZoneBegin("textureUpdate")
                 for i: Int in 0..<sim.grid.totalCellsCount {
                     let state: Int = sim.grid.getCell(i) ?? 0
                     ImageDrawPixel(&image, Int32(i % gridW), Int32(i / gridW), colors[state])
                 }
                 UpdateTexture(texture, image.data)
+                TracySwiftZoneEnd(textureZone)
             }
+            TracySwiftFrameMarkEnd("frame")
         }
         CloseWindow()
         """

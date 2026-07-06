@@ -70,6 +70,30 @@ automaton GameOfLife {
 
 More examples are available in the [examples](examples) directory
 
+## Profiling with Tracy
+
+This branch enables profiling via [Tracy](https://github.com/wolfpld/tracy). The profiling integration with tracy follows the blog at https://compositorapp.com/blog/2026-02-07/Tracy/
+
+### Building the profiler
+
+```bash
+cd tracy
+cmake -S profiler -B profiler/build -DCMAKE_BUILD_TYPE=Release
+cmake --build profiler/build --config Release
+```
+
+This produces `tracy-profiler.exe` in `tracy/profiler/build/Release/`.
+
+### Running a profiling session
+
+1. Start `tracy-profiler.exe`
+2. Build and run Carl:
+   ```bash
+   swift run examples/game-of-life.carl -o game-of-life.exe
+   game-of-life.exe
+   ```
+3. Click "Connect" in the profiler.
+
 ## Project Structure
 
 ```

@@ -8,6 +8,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.7.0"),
+        .package(path: "tracy"),
     ],
     targets: [
         .target(
@@ -47,7 +48,11 @@ let package = Package(
         ),
         .executableTarget(
             name: "Carl",
-            dependencies: [.product(name: "ArgumentParser", package: "swift-argument-parser"), "CRaylib"]
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                "CRaylib",
+                .product(name: "TracyC", package: "tracy"),
+            ]
         ),
         .testTarget(
             name: "CarlTests",

@@ -1,4 +1,5 @@
 import Foundation
+import TracyC
 
 // # Adapted from Stack Overflow, response by @vacawama, accessed on 29.05.2026
 // # URL: https://stackoverflow.com/a/51448698
@@ -154,6 +155,8 @@ struct NDGrid {
     ///   - stateType: The target state integer to match
     /// - Returns: The number of matching neighbors cells
     func countNeighbors(idx: Int, stateType: Int) -> Int {
+        let zone: TracySwiftZoneCtx = TracySwiftZoneBegin("grid.countNeighbors")
+        defer { TracySwiftZoneEnd(zone) }
         var res: Int = 0
 
         for offset: Int in getValidLinearOffsets(idx: idx) {
@@ -175,6 +178,8 @@ struct NDGrid {
     ///   - neighborBuffer: Pre-allocated buffer to fill with neighbor states
     /// - Returns: The number of neighbors written to the buffer
     func getNeighbors(idx: Int, neighborBuffer: inout [Int]) -> Int {
+        let zone: TracySwiftZoneCtx = TracySwiftZoneBegin("grid.getNeighbors")
+        defer { TracySwiftZoneEnd(zone) }
         let offsets: [Int] = getValidLinearOffsets(idx: idx)
         var count: Int = 0
 

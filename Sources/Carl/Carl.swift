@@ -52,6 +52,11 @@ struct Carl: ParsableCommand {
                 try copyCRaylibSources(to: cRaylibDir)
             }
 
+            let tracyDir: URL = buildDir.appendingPathComponent("tracy")
+            if !FileManager.default.fileExists(atPath: tracyDir.path) {
+                try copyTracy(to: tracyDir)
+            }
+
             let packageSwift: URL = buildDir.appendingPathComponent("Package.swift")
             if !FileManager.default.fileExists(atPath: packageSwift.path) {
                 try generatePackageSwiftContents().write(to: packageSwift, atomically: true, encoding: .utf8)
@@ -156,6 +161,21 @@ struct Carl: ParsableCommand {
         try FileManager.default.copyItem(at: cRaylibSource, to: destination)
     }
 
+    /// Copy the tracy directory to the destination URL
+    ///
+    /// - Parameter destination: The URL where tracy is copied
+    private func copyTracy(to destination: URL) throws {
+        let carlSwiftURL: URL = URL(fileURLWithPath: #filePath)
+        let projectRoot: URL = carlSwiftURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let tracySource: URL = projectRoot.appendingPathComponent("tracy")
+
+        guard FileManager.default.fileExists(atPath: tracySource.path) else {
+            throw ValidationError("Tracy sources not found at \(tracySource.path). Please ensure tracy/ is present in the project root.")
+        }
+
+        try FileManager.default.copyItem(at: tracySource, to: destination)
+    }
+
     /// Generate the package.swift contents
     /// 
     /// - Returns: The generated code
@@ -166,6 +186,9 @@ struct Carl: ParsableCommand {
 
         let package = Package(
             name: "GeneratedAutomaton",
+            dependencies: [
+                .package(path: "tracy"),
+            ],
             targets: [
                 .target(
                     name: "CRaylib",
@@ -204,7 +227,7 @@ struct Carl: ParsableCommand {
                 ),
                 .executableTarget(
                     name: "Generated",
-                    dependencies: ["CRaylib"]
+                    dependencies: ["CRaylib", .product(name: "TracyC", package: "tracy")]
                 ),
             ],
             swiftLanguageModes: [.v6]
