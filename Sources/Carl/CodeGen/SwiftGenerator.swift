@@ -31,11 +31,14 @@ struct SwiftGenerator {
     /// String result of the code generation
     private var generatedCode: String = ""
 
+    /// Number of simulation steps per rendered frame.
+    private var stepsPerFrame: Int
+
     /// Initializes a new SwiftGenerator with the specified AST.
     ///
     /// - Parameter AST: The source AST to be transformed to code.
     /// - Parameter gridLength: Optional grid length for each dimension.
-    init(_ AST: Automaton, gridLength: Int? = nil) {
+    init(_ AST: Automaton, gridLength: Int? = nil, stepsPerFrame: Int = 1) {
         self.name = AST.name
 
         let world: World = AST.world
@@ -45,6 +48,7 @@ struct SwiftGenerator {
         self.dimension = world.dimension
 
         self.gridLength = gridLength
+        self.stepsPerFrame = stepsPerFrame
 
         self.initial = AST.initial
         self.rules = AST.rules
@@ -927,6 +931,12 @@ struct SwiftGenerator {
                         let current: Int = sim.grid.getCell(i) ?? 0
                         sim.grid.setCell(idx: i, stateNum: (current + 1) % stateCount)
                     }
+
+                    for i: Int in 0..<sim.grid.totalCellsCount {
+                        let state: Int = sim.grid.getCell(i) ?? 0
+                        ImageDrawPixel(&image, Int32(i % gridW), Int32(i / gridW), colors[state])
+                    }
+                    UpdateTexture(texture, image.data)
                 }
 
         \(getStepControlsCode(indent: 8))
@@ -947,12 +957,14 @@ struct SwiftGenerator {
                 sim.step()
                 stepCount += 1
             }
-                
-            for i: Int in 0..<sim.grid.totalCellsCount {
-                let state: Int = sim.grid.getCell(i) ?? 0
-                ImageDrawPixel(&image, Int32(i % gridW), Int32(i / gridW), colors[state])
+
+            if stepCount % \(stepsPerFrame) == 0  {
+                for i: Int in 0..<sim.grid.totalCellsCount {
+                    let state: Int = sim.grid.getCell(i) ?? 0
+                    ImageDrawPixel(&image, Int32(i % gridW), Int32(i / gridW), colors[state])
+                }
+                UpdateTexture(texture, image.data)
             }
-            UpdateTexture(texture, image.data)
         }
         CloseWindow()
         """

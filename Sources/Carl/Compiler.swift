@@ -5,9 +5,13 @@ struct Compiler {
     /// Optional grid length for each dimension.
     let gridLength: Int?
 
-    init(source: String, gridLength: Int? = nil) {
+    /// Number of simulation steps per rendered frame.
+    let stepsPerFrame: Int
+
+    init(source: String, gridLength: Int? = nil, stepsPerFrame: Int = 1) {
         self.source = source
         self.gridLength = gridLength
+        self.stepsPerFrame = stepsPerFrame
     }
 
     /// Entry point to compile the source code
@@ -21,7 +25,7 @@ struct Compiler {
         let semanticAnalyzer: SemanticAnalyzer = SemanticAnalyzer(AST: automaton)
         try semanticAnalyzer.verifySemantic()
 
-        var swiftGenerator: SwiftGenerator = SwiftGenerator(automaton, gridLength: gridLength)
+        var swiftGenerator: SwiftGenerator = SwiftGenerator(automaton, gridLength: gridLength, stepsPerFrame: stepsPerFrame)
         return try swiftGenerator.generate()
     }
 }
