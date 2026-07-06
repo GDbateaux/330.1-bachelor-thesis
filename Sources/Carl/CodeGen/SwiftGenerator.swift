@@ -905,6 +905,13 @@ struct SwiftGenerator {
             zoom: 1.0
         )
 
+        var image: Image = GenImageColor(Int32(gridW), Int32(gridH), colors[0])
+        for i: Int in 0..<sim.grid.totalCellsCount {
+            let state: Int = sim.grid.getCell(i) ?? 0
+            ImageDrawPixel(&image, Int32(i % gridW), Int32(i / gridW), colors[state])
+        }
+        let texture: Texture2D = LoadTextureFromImage(image)
+
         while !WindowShouldClose() {
             if !showMenu {
         \(get2DCameraControlsCode(indent: 8))
@@ -929,22 +936,25 @@ struct SwiftGenerator {
                 ClearBackground(Color(r: 20, g: 20, b: 20, a: 255))
 
                 BeginMode2D(camera)
-                    let width: Int = sim.grid.dimensions[sim.grid.dimensions.count - 1]
-                    var x: Int = 0
-                    var y: Int = 0
-                    for i: Int in 0..<sim.grid.totalCellsCount {
-                        let state: Int = sim.grid.getCell(i) ?? 0
-                        let color: Color = colors[state]
-                        DrawRectangle(Int32(x)*cellSize, Int32(y)*cellSize, cellSize, cellSize, color)
-                        x += 1
-                        if x % width == 0 && i != 0 {
-                            y += 1
-                            x = 0
-                        }
-                    }
+                    DrawTextureEx(texture, Vector2(x: 0, y: 0), 0, Float(cellSize), Color(r: 255, g: 255, b: 255, a: 255))
                 EndMode2D()
 
-        \(getGameLoopSkeletonCode())
+        \(getHUDCode(indent: 8))
+        \(getMenuCode(indent: 8))
+            EndDrawing()
+
+            if isRunning {
+                sim.step()
+                stepCount += 1
+            }
+                
+            for i: Int in 0..<sim.grid.totalCellsCount {
+                let state: Int = sim.grid.getCell(i) ?? 0
+                ImageDrawPixel(&image, Int32(i % gridW), Int32(i / gridW), colors[state])
+            }
+            UpdateTexture(texture, image.data)
+        }
+        CloseWindow()
         """
     }
 
