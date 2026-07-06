@@ -1,0 +1,39 @@
+// swift-tools-version: 6.0
+import PackageDescription
+
+let package = Package(
+  name: "tracy",
+  platforms: [.macOS(.v10_15)],
+  products: [
+    .library(name: "TracyC", targets: ["TracyC"]),
+  ],
+  targets: [
+    .target(
+      name: "TracyClient",
+      path: "public",
+      sources: ["TracyClient.cpp"],
+      publicHeadersPath: "include",
+      cxxSettings: [
+        .define("TRACY_ENABLE", to: "1"), // TODO pull in from environment
+        .headerSearchPath("."),
+        .headerSearchPath("tracy"),
+      ]
+    ),
+    .target(
+      name: "TracyC",
+      dependencies: ["TracyClient"],
+      path: "swift/TracyC",
+      sources: ["TracySwiftShim.c"],
+      publicHeadersPath: "include",
+      cSettings: [
+        .define("TRACY_ENABLE", to: "1"), // TODO pull in from environment
+      ],
+      cxxSettings: [
+        .define("TRACY_ENABLE", to: "1"),
+        .headerSearchPath("../../public"),
+        .headerSearchPath("../../public/tracy"),
+      ]
+    )
+  ],
+  cxxLanguageStandard: .cxx17
+)
