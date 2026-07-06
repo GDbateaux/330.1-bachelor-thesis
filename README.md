@@ -76,6 +76,8 @@ This branch enables profiling via [Tracy](https://github.com/wolfpld/tracy). The
 
 ### Building the profiler
 
+[CMake](https://cmake.org/download/) is required.
+
 ```bash
 cd tracy
 cmake -S profiler -B profiler/build -DCMAKE_BUILD_TYPE=Release
