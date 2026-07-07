@@ -12,7 +12,7 @@ let package = Package(
       name: "TracyClient",
       path: "public",
       sources: ["TracyClient.cpp"],
-      publicHeadersPath: "include",
+      publicHeadersPath: ".",
       cxxSettings: [
         .define("TRACY_ENABLE", to: "1"),
         .headerSearchPath("."),
