@@ -3,7 +3,6 @@ import PackageDescription
 
 let package = Package(
   name: "tracy",
-  platforms: [.macOS(.v10_15)],
   products: [
     .library(name: "TracyC", targets: ["TracyC"]),
   ],
