@@ -1,6 +1,6 @@
 name: Swift
 
-on: push
+on: [push, pull_request]
 
 jobs:
   build:
@@ -21,3 +21,5 @@ jobs:
           sudo apt install libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev libwayland-dev libxkbcommon-dev libxext-dev
       - name: Compile Carl file
         run: swift run Carl Tests/CarlTests/CompilerTests/positive/game-of-life.carl -o game-of-life
+      - name: Run tests
+        run: swift test
