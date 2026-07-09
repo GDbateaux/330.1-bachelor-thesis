@@ -8,7 +8,7 @@ struct SwiftGenerator {
     private let states: [String]
 
     /// Neighborhood type (Moore, VonNeumann or Hexagonal)
-    private let neighborhoodType: String
+    private let neighborhoodType: NeighborhoodType
 
     /// Neighborhood range
     private let neighborhoodRange: Int
@@ -43,7 +43,7 @@ struct SwiftGenerator {
 
         let world: World = AST.world
         self.states = world.states
-        self.neighborhoodType = world.neighborhood.type
+        self.neighborhoodType = NeighborhoodType(rawValue: world.neighborhood.type)!
         self.neighborhoodRange = world.neighborhood.range
         self.dimension = world.dimension
 
@@ -68,11 +68,11 @@ struct SwiftGenerator {
         var grid: NDGrid
         var history: [NDGrid] = []
         var stateNames: [String] = \(states)
-        var lookupNextState: [UInt64:Int]?
+        var nextStateTable: [Int]?
 
         init(dimensions: [Int]) {
-            self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))
-            self.lookupNextState = buildLookupNextCell()
+            self.grid = NDGrid(dimensions: dimensions, neighborhoodType: NeighborhoodType.\(neighborhoodType), range: \(neighborhoodRange), stateCount: \(states.count))
+            self.nextStateTable = buildNextStateTable()
         }\n\n
         """
 
@@ -90,52 +90,49 @@ struct SwiftGenerator {
 
     /// Generates the function responsible for computing the next state of a cell according to the automaton rules
     private mutating func generateRules() {
-        generateBuildLookupNextCell()
+        generateBuildNextStateTable()
         generateEvaluateNextState()
         generateNextCell()
         generateGetLookupKey()
     }
 
     /// Generates the function that pre-computes all state transitions into an optional lookup dictionary for fast evaluation
-    private mutating func generateBuildLookupNextCell() {
+    private mutating func generateBuildNextStateTable() {
         generatedCode += """
-            private func buildLookupNextCell() -> [UInt64: Int]? {
+            private func buildNextStateTable() -> [Int]? {
                 let keyElementsCount: Int = self.grid.numNeighbors + 1
                 let stateCount: Int = \(states.count)
-                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
-                let numTotalBits: Int = bitsPerState * keyElementsCount
+                var totalCombinations: Int = 1
+                let limit: Int = 1000000
 
-                if numTotalBits > 64 {
-                    return nil
+                for _ in 0..<keyElementsCount {
+                    if totalCombinations > limit / stateCount {
+                        return nil
+                    }
+                    totalCombinations *= stateCount
                 }
 
-                let totalCombinations: Int = Int(pow(Double(stateCount), Double(keyElementsCount)))
+                var nextStateTable: [Int] = Array(repeating: -1, count: totalCombinations)
 
-                if totalCombinations > 1000000 {
-                    return nil
-                }
-
-                var lookupNextState: [UInt64: Int] = [:]
-
-                func rec(currentKey: UInt64, currentIndex: Int, pattern: [Int]) {
+                func rec(currentKey: Int, currentIndex: Int, pattern: [Int]) {
                     if currentIndex == keyElementsCount - 1 {
                         for state: Int in 0..<stateCount {
                             let nextPattern: [Int] = pattern + [state]
                             if let nextState = evaluateNextState(pattern: nextPattern) {
-                                lookupNextState[currentKey | UInt64(state)] = nextState
+                                nextStateTable[currentKey + state] = nextState
                             }
                         }
                         return
                     }
 
                     for state: Int in 0..<stateCount {
-                        let nextKey: UInt64 = (currentKey | UInt64(state)) << bitsPerState
+                        let nextKey: Int = (currentKey + state) * stateCount
                         let nextPattern: [Int] = pattern + [state]
                         rec(currentKey: nextKey, currentIndex: currentIndex + 1, pattern: nextPattern)
                     }
                 }
                 rec(currentKey: 0, currentIndex: 0, pattern: [])
-                return lookupNextState
+                return nextStateTable
             }\n\n
         """
     }
@@ -179,10 +176,10 @@ struct SwiftGenerator {
     private mutating func generateNextCell() {
         generatedCode += """
             private func nextCell(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> Int {
-                if let lookup = lookupNextState {
+                if let lookup = nextStateTable {
                     if let key = getLookupKey(grid: grid, idx: idx, neighborBuffer: &neighborBuffer) {
-                        if let nextState = lookup[key] {
-                            return nextState
+                        if lookup[key] != -1{
+                            return lookup[key]
                         }
                     }
                 }
@@ -227,7 +224,7 @@ struct SwiftGenerator {
     /// Generates the getLookupKey function that builds a key from a cell and its neighbors for lookup table access
     private mutating func generateGetLookupKey() {
         generatedCode += """
-            private func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> UInt64? {
+            private func getLookupKey(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> Int? {
                 guard let currentState = grid.getCell(idx) else {
                     return nil
                 }
@@ -238,11 +235,10 @@ struct SwiftGenerator {
                 }
 
                 let stateCount: Int = \(states.count)
-                let bitsPerState: Int = Int(ceil(log2(Double(stateCount))))
-                var key: UInt64 = UInt64(currentState)
+                var key: Int = currentState
 
                 for i: Int in 0..<neighborsCount {
-                    key = (key << bitsPerState) | UInt64(neighborBuffer[i])
+                    key = key * stateCount + neighborBuffer[i]
                 }
                 return key
             }\n\n
@@ -610,7 +606,7 @@ struct SwiftGenerator {
 
         \(getColorsPalette(transparentZero: true))
 
-        \(getWindowSetupCode(fps: 30))
+        \(getWindowSetupCode(fps: 60))
         var camera: Camera3D = Camera3D(
             position: Vector3(x: 100, y: 100, z: 100),
             target: Vector3(x: 0, y: 0, z: 0),
@@ -816,7 +812,7 @@ struct SwiftGenerator {
         }
 
         // --- Display ---
-        \(getWindowSetupCode(fps: 30))
+        \(getWindowSetupCode(fps: 60))
         var camera: Camera2D = Camera2D(
             offset: Vector2(x: 0, y: 0),
             target: Vector2(x: 0, y: 0),
@@ -980,7 +976,7 @@ struct SwiftGenerator {
         else if dimension == 3 {
             generate3DMain()
         }
-        else if neighborhoodType == "Hexagonal" {
+        else if neighborhoodType == NeighborhoodType.hexagonal {
             generateHexMain()
         }
         else {

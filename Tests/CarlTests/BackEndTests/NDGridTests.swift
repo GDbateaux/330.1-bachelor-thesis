@@ -3,17 +3,17 @@ import Foundation
 @testable import Carl
 
 @Test func testGridInitialization() {
-    let grid1: NDGrid = NDGrid(dimensions: [10, 20], neighborhoodType: "Moore", range: 1, stateCount: 2)
+    let grid1: NDGrid = NDGrid(dimensions: [10, 20], neighborhoodType: NeighborhoodType.moore, range: 1, stateCount: 2)
     #expect(grid1.totalCellsCount == 10 * 20)
     #expect(grid1.numNeighbors == 8)
 
-    let grid2: NDGrid = NDGrid(dimensions: [20, 30, 45], neighborhoodType: "VonNeumann", range: 2, stateCount: 2)
+    let grid2: NDGrid = NDGrid(dimensions: [20, 30, 45], neighborhoodType: NeighborhoodType.vonNeumann, range: 2, stateCount: 2)
     #expect(grid2.totalCellsCount == 20 * 30 * 45)
     #expect(grid2.numNeighbors == 24)
 }
 
 @Test func testSetAndGetCell() {
-    var grid: NDGrid = NDGrid(dimensions: [5, 5], neighborhoodType: "Moore", range: 1, stateCount: 4)
+    var grid: NDGrid = NDGrid(dimensions: [5, 5], neighborhoodType: NeighborhoodType.moore, range: 1, stateCount: 4)
 
     grid.setCell(idx: 12, stateNum: 3)
 
@@ -23,7 +23,7 @@ import Foundation
 }
 
 @Test func testNeighbors() {
-    var grid: NDGrid = NDGrid(dimensions: [3, 3], neighborhoodType: "Moore", range: 1, stateCount: 2)
+    var grid: NDGrid = NDGrid(dimensions: [3, 3], neighborhoodType: NeighborhoodType.moore, range: 1, stateCount: 2)
     grid.setCell(idx: 1, stateNum: 1)
     grid.setCell(idx: 3, stateNum: 1)
 
@@ -37,16 +37,16 @@ import Foundation
 }
 
 @Test func testHexInitialization() {
-    let grid1: NDGrid = NDGrid(dimensions: [10, 10], neighborhoodType: "Hexagonal", range: 1, stateCount: 2)
+    let grid1: NDGrid = NDGrid(dimensions: [10, 10], neighborhoodType: NeighborhoodType.hexagonal, range: 1, stateCount: 2)
     #expect(grid1.totalCellsCount == 100)
     #expect(grid1.numNeighbors == 6)
 
-    let grid2: NDGrid = NDGrid(dimensions: [10, 10], neighborhoodType: "Hexagonal", range: 2, stateCount: 2)
+    let grid2: NDGrid = NDGrid(dimensions: [10, 10], neighborhoodType: NeighborhoodType.hexagonal, range: 2, stateCount: 2)
     #expect(grid2.numNeighbors == 18)
 }
 
 @Test func testHexNeighborsEvenRow() {
-    var grid: NDGrid = NDGrid(dimensions: [5, 5], neighborhoodType: "Hexagonal", range: 1, stateCount: 2)
+    var grid: NDGrid = NDGrid(dimensions: [5, 5], neighborhoodType: NeighborhoodType.hexagonal, range: 1, stateCount: 2)
     #expect(grid.countNeighbors(idx: 12, stateType: 0) == 6)
     
     grid.setCell(idx: 6, stateNum: 1)
@@ -55,7 +55,7 @@ import Foundation
 }
 
 @Test func testHexNeighborsOddRow() {
-    var grid: NDGrid = NDGrid(dimensions: [5, 5], neighborhoodType: "Hexagonal", range: 1, stateCount: 2)
+    var grid: NDGrid = NDGrid(dimensions: [5, 5], neighborhoodType: NeighborhoodType.hexagonal, range: 1, stateCount: 2)
     #expect(grid.countNeighbors(idx: 17, stateType: 0) == 6)
 
     grid.setCell(idx: 12, stateNum: 1)
@@ -64,7 +64,7 @@ import Foundation
 }
 
 @Test func testHexBoundaryCells() {
-    let grid: NDGrid = NDGrid(dimensions: [4, 4], neighborhoodType: "Hexagonal", range: 1, stateCount: 2)
+    let grid: NDGrid = NDGrid(dimensions: [4, 4], neighborhoodType: NeighborhoodType.hexagonal, range: 1, stateCount: 2)
     #expect(grid.countNeighbors(idx: 0, stateType: 0) == 2)
     #expect(grid.countNeighbors(idx: 3, stateType: 0) == 3)
     #expect(grid.countNeighbors(idx: 4, stateType: 0) == 5)

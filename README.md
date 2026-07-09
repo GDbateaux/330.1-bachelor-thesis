@@ -41,6 +41,20 @@ swift run Carl path/to/file.carl -o my-automaton
 | `--steps-per-frame`   | Number of simulation steps between texture updates (2D only). Defaults to `1`.               |
 | `--clean`             | Clean the build cache before recompiling.                                                    |
 
+### Simulation controls
+
+| Key / control | Action |
+| --- | --- |
+| `Space` | Pause or resume the simulation. |
+| `Right Arrow` | Advance by one step when the simulation is paused. |
+| `Left Arrow` | Go back by one step when the simulation is paused. |
+| `E` | Toggle edit mode (only in 3d). In edit mode, the simulation is paused. |
+| `Up Arrow` / `Down Arrow` | Change the active layer in edit mode (3D automata). |
+| Left mouse drag | Pan the camera when not in edit mode. |
+| Mouse wheel | Zoom in or out |
+| Right mouse button | Cycle the state of a cell (in 3d only in edit mode). |
+| Menu button (top-left) | Open the state/color menu and pause the simulation. |
+
 ## Language documentation
 
 See [docs/DSL_design.md](docs/DSL_design.md) for the language specification, EBNF grammar and examples.
@@ -114,7 +128,9 @@ More examples in the [examples](examples) directory.
 ## Preview
 
 ![Game of Life](docs/game-of-life.png)
+
 ![Forest Fire 3D](docs/forest-fire-3d.png)
+
 ![Excitable Medium Hex](docs/excitable-medium-hex.gif)
 
 ## Credits

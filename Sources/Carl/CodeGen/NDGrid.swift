@@ -1,5 +1,13 @@
 import Foundation
 
+
+/// Type of neighborhood for cellular automata
+enum NeighborhoodType: String {
+    case moore = "Moore"
+    case vonNeumann = "VonNeumann"
+    case hexagonal = "Hexagonal"
+}
+
 // # Adapted from Stack Overflow, response by @vacawama, accessed on 29.05.2026
 // # URL: https://stackoverflow.com/a/51448698
 //
@@ -32,11 +40,14 @@ struct NDGrid {
     /// Maximum number of cell states packable inside one 64-bit integer
     private var numCellsPerInt: Int
 
-    /// Type of neighborhood ("Moore", "VonNeumann" or "Hexagonal")
-    private let neighborhoodType: String
+    /// Type of neighborhood
+    private let neighborhoodType: NeighborhoodType
 
     /// Neighborhood range
     private let range: Int
+
+    /// Number of states
+    private let stateCount: Int
 
     /// Array containing all offsets for local neighbors (moore or vonNeumann).
     private var standardNeighborsOffsets: [NeighborhoodOffset] = []
@@ -68,10 +79,11 @@ struct NDGrid {
     ///   - neighborhoodType: "Moore", "VonNeumann" or "Hexagonal"
     ///   - range: Distance of neighborhood
     ///   - stateCount: Total possible cell states.
-    init(dimensions: [Int], neighborhoodType: String, range: Int, stateCount: Int) {
+    init(dimensions: [Int], neighborhoodType: NeighborhoodType, range: Int, stateCount: Int) {
         self.dimensions = dimensions
         self.neighborhoodType = neighborhoodType
         self.range = range
+        self.stateCount = stateCount
 
         // Number of bits for a cell (8 states -> 3 bits)
         self.bitsPerState = Int(ceil(log2(Double(stateCount))))
@@ -86,13 +98,13 @@ struct NDGrid {
         let allocationSize: Int = Int(ceil(Double(totalCellsCount) / Double(numCellsPerInt)))
         self.cells = Array(repeating: 0, count: allocationSize)
         
-        if neighborhoodType == "Hexagonal" {
+        if neighborhoodType == NeighborhoodType.hexagonal {
             (self.standardHexNeighborsOffsetsEven, self.standardHexNeighborsOffsetsOdd) = getHexagonalOffset()
             self.standardHexLinearOffsetsEven = standardHexNeighborsOffsetsEven.map({ $0.linear })
             self.standardHexLinearOffsetsOdd = standardHexNeighborsOffsetsOdd.map({ $0.linear })
             self.numNeighbors = standardHexLinearOffsetsEven.count
         }
-        else if neighborhoodType == "Moore" {
+        else if neighborhoodType == NeighborhoodType.moore {
             self.standardNeighborsOffsets = getMooreOffset()
             self.standardLinearOffsets = standardNeighborsOffsets.map({ $0.linear })
             self.numNeighbors = standardNeighborsOffsets.count
@@ -111,9 +123,7 @@ struct NDGrid {
     ///   - idx: Linear index of the target cell
     ///   - stateNum: Numeric value of the new state
     mutating func setCell(idx: Int, stateNum: Int) {
-        let maxStates: Int = Int(pow(2.0, Double(bitsPerState)))
-        
-        if stateNum >= maxStates {
+        if stateNum >= stateCount {
             fatalError("Invalid state: The state \(stateNum) exceeds the maximum allowed capacity for a \(bitsPerState)-bit cell configuration.")
         }
 
@@ -196,7 +206,7 @@ struct NDGrid {
             return boundaryNeighborhoodConfigs[configIdx]
         }
 
-        if neighborhoodType == "Hexagonal" {
+        if neighborhoodType == NeighborhoodType.hexagonal {
             if idx / dimensions[1] % 2 == 0 {
                 return standardHexLinearOffsetsEven
             }
@@ -215,7 +225,7 @@ struct NDGrid {
         var isValid: Bool = true
         var offsets: [NeighborhoodOffset] = []
 
-        if neighborhoodType == "Hexagonal" {
+        if neighborhoodType == NeighborhoodType.hexagonal {
             offsets = coords[0] % 2 == 0 ? standardHexNeighborsOffsetsEven : standardHexNeighborsOffsetsOdd
         }
         else {
