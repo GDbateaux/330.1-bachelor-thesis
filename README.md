@@ -128,7 +128,9 @@ More examples in the [examples](examples) directory.
 ## Preview
 
 ![Game of Life](docs/game-of-life.png)
+
 ![Forest Fire 3D](docs/forest-fire-3d.png)
+
 ![Excitable Medium Hex](docs/excitable-medium-hex.gif)
 
 ## Credits
