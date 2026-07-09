@@ -1,6 +1,6 @@
 # Carl: Cellular Automata Rule Language
 
-Carl is a domain-specific language for defining cellular automata. It compiles .carl files into executables that simulate and visualize the automaton using Raylib.
+Carl is a domain-specific language for defining cellular automata. It compiles `.carl` files into executables that simulate and visualize the automaton using Raylib.
 
 ## Features
 
@@ -8,29 +8,28 @@ Carl is a domain-specific language for defining cellular automata. It compiles .
 - N-dimensional automata
 - Moore, Von Neumann or hexagonal neighborhoods
 - Executable generation
-- Real-time visualization with Raylib
+- Real-time visualization with Raylib (requires OpenGL 3.3+)
+
+## Prerequisites
+
+- [Swift](https://www.swift.org/install/) 6.0+
 
 ## Installation
-
-### Prerequisites
-
-- [Swift](https://www.swift.org/install/) installed
-
-### Build from Source
 
 ```bash
 git clone https://github.com/GDbateaux/330.1-bachelor-thesis.git
 cd 330.1-bachelor-thesis
 ```
 
+> **Windows users** : Swift Package Manager uses symlinks for dependencies. Enable **Developer Mode** (Settings → For developers) and run `git config --global core.symlinks true`.
+
 ## Usage
 
-Write a cellular automaton in a .carl file, then compile it:
-
 ```bash
-swift run Carl file-path.carl -o file-path-output
-./game-of-life
+swift run Carl path/to/file.carl -o my-automaton
+./my-automaton
 ```
+> **First build is slow** : Carl compiles Raylib from C sources.
 
 ### Command-line options
 
@@ -46,7 +45,7 @@ swift run Carl file-path.carl -o file-path-output
 
 See [docs/DSL_design.md](docs/DSL_design.md) for the language specification, EBNF grammar and examples.
 
-## Examples
+## Example
 
 ### Game of Life
 
@@ -68,7 +67,7 @@ automaton GameOfLife {
 }
 ```
 
-More examples are available in the [examples](examples) directory
+More examples in the [examples](examples) directory.
 
 ## Project Structure
 
@@ -101,5 +100,11 @@ More examples are available in the [examples](examples) directory
 ├──README.md
 └── .gitignore  
 ```
+
+## Preview
+
+![Game of Life](docs/game-of-life.png)
+![Forest Fire 3D](docs/forest-fire-3d.png)
+![Excitable Medium Hex](docs/excitable-medium-hex.gif)
 
 Built with assistance from Opencode's Big Pickle model.
