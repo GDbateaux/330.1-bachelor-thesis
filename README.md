@@ -1,6 +1,6 @@
 # Carl: Cellular Automata Rule Language
 
-Carl is a domain-specific language for defining cellular automata. It compiles `.carl` files into executables that simulate and visualize the automaton using Raylib.
+Carl is a domain-specific language for defining cellular automata. It compiles `.carl` files into executables that simulate and visualize the automaton using [Raylib](https://www.raylib.com/).
 
 ## Features
 
@@ -74,8 +74,8 @@ More examples in the [examples](examples) directory.
 ```
 .
 ├──.github/workflows/  
-│  └── compile-carl.yml           # CI: build & test on ubuntu/macos/windows  
-├──docs/  
+│  └── ci.yml                     # CI: build & test on ubuntu/macos/windows  
+├──docs/                          # Language documentation and README images
 │  └── DSL_design.md              # Language specification + EBNF grammar  
 ├──examples/                      # Example .carl programs  
 ├──Sources/  
@@ -107,4 +107,7 @@ More examples in the [examples](examples) directory.
 ![Forest Fire 3D](docs/forest-fire-3d.png)
 ![Excitable Medium Hex](docs/excitable-medium-hex.gif)
 
-Built with assistance from Opencode's Big Pickle model.
+## Credits
+
+- The README were built with assistance from Opencode's Big Pickle model
+- [Raylib](https://www.raylib.com/) used for visualization

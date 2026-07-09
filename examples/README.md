@@ -14,4 +14,4 @@ swift run Carl examples/game-of-life.carl -o game-of-life
 | `forest-fire-3d.carl` | Forest fire in 3D |
 | `forest-fire.carl` | Forest fire simulation |
 | `game-of-life.carl` | Conway's Game of Life |
-| `wireworld.carl` | Wireworld simultaion |
+| `wireworld.carl` | Wireworld simulation |
