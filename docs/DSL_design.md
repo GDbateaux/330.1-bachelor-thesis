@@ -8,8 +8,8 @@ Every program is contained in an **automaton block** (`automaton CellularAutomat
 
 This block defines the world properties :
    - `states`: A list of states that a cell can hold.
-   - `neighborhood`: The proximity model used to calculate a cell's neighbors (`Moore`, `VonNeumann` or `Hexagonal`), followed by its radius in parentheses (e.g. `Moore(1)`).
-   - `dimension`: A number to specify the dimensionality of the grid.
+   - `neighborhood`: The proximity model used to calculate a cell's neighbors (`Moore`, `VonNeumann` or `Hexagonal`), followed by its radius in parentheses (e.g. `Moore(1)`). Defaults to `Moore(1)` if omitted.
+   - `dimension`: A number to specify the dimensionality of the grid. Defaults to `2` if omitted.
 
 ### Initial block (`initial { ... }`)
 
@@ -37,6 +37,17 @@ StateA -> StateB [when expression] [with prob p]
 - `when`: optional condition that must be true for the transition to occur (e.g. `when count_neighbors(Alive) == 3`)
 - `with prob p`: Optional probability (0 <= p <= 1) to inject random behaviors (e.g. `with prob 0.01` means that the transition has a probability of 1% to occur)
 
+#### Rule evaluation order
+
+Rules are evaluated top-to-bottom in the order they are written. The first rule whose condition matches determines the transition:
+
+```
+Tree -> Fire when count_neighbors(Fire) > 0    // checked first
+Tree -> Fire with prob 0.001                    // checked second
+```
+
+If the first rule's `when` condition is met, the second rule is never evaluated.
+
 ## Built-in Function
 The following function can be used in the expressions transitions (`when`) :
 
@@ -49,6 +60,22 @@ Returns the number of neighbors that are currently in the given state. You can e
 ```Alive -> Dead when #Alive < 2```
 
 These examples have the same meaning: an Alive cell dies if it has fewer than 2 Alive neighbors.
+
+## Validation constraints
+
+When compiling a `.carl` file, the following constraints are enforced:
+
+| Constraint | Description |
+|-----------|-------------|
+| State existence | All states referenced in `initial` and `rules` must be declared in `world states`. |
+| Neighborhood type | Must be one of `Moore`, `VonNeumann` or `Hexagonal`. |
+| Hexagonal dimension | Hexagonal neighborhood is only valid in 2D. |
+| Neighborhood range | Range must be greater than 0. |
+| Dimension | Dimension must be greater than 0. |
+| Initial probabilities sum | Probabilities in the `initial` block must sum to 1.0. |
+| Rule probability | Probability in `with prob p` must be between 0.0 and 1.0. |
+| `when` condition type | The `when` expression must evaluate to a boolean. |
+| `count_neighbors` arguments | `count_neighbors` expects exactly one argument, which must be a declared state. |
 
 ## Examples
 ### Example: Game of Life

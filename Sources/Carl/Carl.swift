@@ -2,7 +2,7 @@ import Foundation
 import ArgumentParser
 
 
-// Parts of this file were developed with the assistance of an LLM
+// Parts of this file were developed with the assistance of Opencode's Big Pickle model
 @main
 struct Carl: ParsableCommand {
     /// The input file passed to the command.
