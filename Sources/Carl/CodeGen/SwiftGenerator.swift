@@ -8,7 +8,7 @@ struct SwiftGenerator {
     private let states: [String]
 
     /// Neighborhood type (Moore, VonNeumann or Hexagonal)
-    private let neighborhoodType: String
+    private let neighborhoodType: NeighborhoodType
 
     /// Neighborhood range
     private let neighborhoodRange: Int
@@ -43,7 +43,7 @@ struct SwiftGenerator {
 
         let world: World = AST.world
         self.states = world.states
-        self.neighborhoodType = world.neighborhood.type
+        self.neighborhoodType = NeighborhoodType(rawValue: world.neighborhood.type)!
         self.neighborhoodRange = world.neighborhood.range
         self.dimension = world.dimension
 
@@ -71,7 +71,7 @@ struct SwiftGenerator {
         var nextStateTable: [Int]?
 
         init(dimensions: [Int]) {
-            self.grid = NDGrid(dimensions: dimensions, neighborhoodType: \"\(neighborhoodType)\", range: \(neighborhoodRange), stateCount: \(states.count))
+            self.grid = NDGrid(dimensions: dimensions, neighborhoodType: NeighborhoodType.\(neighborhoodType), range: \(neighborhoodRange), stateCount: \(states.count))
             self.nextStateTable = buildNextStateTable()
         }\n\n
         """
@@ -974,7 +974,7 @@ struct SwiftGenerator {
         else if dimension == 3 {
             generate3DMain()
         }
-        else if neighborhoodType == "Hexagonal" {
+        else if neighborhoodType == NeighborhoodType.hexagonal {
             generateHexMain()
         }
         else {
