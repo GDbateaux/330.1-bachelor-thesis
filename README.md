@@ -45,6 +45,16 @@ swift run Carl path/to/file.carl -o my-automaton
 
 See [docs/DSL_design.md](docs/DSL_design.md) for the language specification, EBNF grammar and examples.
 
+## Running tests
+
+Carl includes unit tests covering the lexer, parser, semantic analysis, and other compiler components.
+
+Run all tests with:
+
+```bash
+swift test
+```
+
 ## Example
 
 ### Game of Life
