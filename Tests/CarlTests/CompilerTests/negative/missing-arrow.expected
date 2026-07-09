@@ -1,1 +1,1 @@
-Parser error on line 4, column 14: Expected '->' to follow the initial state.
+Parser error on line 4: Expected '->' to follow the initial state.

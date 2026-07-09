@@ -18,12 +18,6 @@ public struct Lexer{
     /// The line in the source string
     private var line: Int = 1
 
-    /// Start column of the token
-    private var startColumn: Int = 1
-
-    /// The current column in the source string
-    private var column: Int = 1
-
     /// Initializes a new Lexer with the specified source string.
     ///
     /// - Parameter source: The source code string to be tokenized.
@@ -39,7 +33,6 @@ public struct Lexer{
     mutating func scanTokens() throws -> [Token] {
         while !isAtEnd(){
             start = current
-            startColumn = column
             let c: Character = advance()
 
             switch c {
@@ -56,12 +49,12 @@ public struct Lexer{
 
                 case "=":
                     guard match("=") else {
-                        throw CompilerError.lexerError(message: "Unexpected '=' (only '==' is allowed)", line: line, column: startColumn)
+                        throw CompilerError.lexerError(message: "Unexpected '=' (only '==' is allowed)", line: line)
                     }
                     addToken(TokenType.equalEqual)
                 case "!":
                     guard match("=") else {
-                        throw CompilerError.lexerError(message: "Unexpected '!' (only '!=' is allowed)", line: line, column: startColumn)
+                        throw CompilerError.lexerError(message: "Unexpected '!' (only '!=' is allowed)", line: line)
                     }
                     addToken(TokenType.notEqual)
                 case "-": 
@@ -74,7 +67,6 @@ public struct Lexer{
                     if c.isWhitespace {
                         if c.isNewline {
                             line += 1
-                            column = 1
                         }
                         break
                     }
@@ -85,11 +77,11 @@ public struct Lexer{
                         takeIdentifier()
                     }
                     else {
-                        throw CompilerError.lexerError(message: "Unexpected character '\(c)'", line: line, column: startColumn)
+                        throw CompilerError.lexerError(message: "Unexpected character '\(c)'", line: line)
                     }
             }
         }
-        tokens.append(Token(type: TokenType.eof, lexeme: "", line: line, column: startColumn))
+        tokens.append(Token(type: TokenType.eof, lexeme: "", line: line))
         return tokens
     }
 
@@ -99,7 +91,6 @@ public struct Lexer{
     private mutating func advance() -> Character {
         let char: Character = source[current]
         current = source.index(after: current)
-        column += 1
         return char
     }
 
@@ -112,7 +103,6 @@ public struct Lexer{
             return false
         }
         current = source.index(after: current)
-        column += 1
         return true
     }
 
@@ -146,7 +136,7 @@ public struct Lexer{
     /// - Parameter type: The TokenType classification to assign to the extracted lexeme.
     private mutating func addToken(_ type: TokenType) {
         let lexeme: String = String(source[start..<current])
-        tokens.append(Token(type: type, lexeme: lexeme, line: line, column: startColumn))
+        tokens.append(Token(type: type, lexeme: lexeme, line: line))
     }
 
     /// Checks if the given character is a digit
