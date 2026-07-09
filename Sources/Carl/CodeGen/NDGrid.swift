@@ -46,6 +46,9 @@ struct NDGrid {
     /// Neighborhood range
     private let range: Int
 
+    /// Number of states
+    private let stateCount: Int
+
     /// Array containing all offsets for local neighbors (moore or vonNeumann).
     private var standardNeighborsOffsets: [NeighborhoodOffset] = []
 
@@ -80,6 +83,7 @@ struct NDGrid {
         self.dimensions = dimensions
         self.neighborhoodType = neighborhoodType
         self.range = range
+        self.stateCount = stateCount
 
         // Number of bits for a cell (8 states -> 3 bits)
         self.bitsPerState = Int(ceil(log2(Double(stateCount))))
@@ -119,9 +123,7 @@ struct NDGrid {
     ///   - idx: Linear index of the target cell
     ///   - stateNum: Numeric value of the new state
     mutating func setCell(idx: Int, stateNum: Int) {
-        let maxStates: Int = Int(pow(2.0, Double(bitsPerState)))
-        
-        if stateNum >= maxStates {
+        if stateNum >= stateCount {
             fatalError("Invalid state: The state \(stateNum) exceeds the maximum allowed capacity for a \(bitsPerState)-bit cell configuration.")
         }
 

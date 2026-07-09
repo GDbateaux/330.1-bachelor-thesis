@@ -812,7 +812,7 @@ struct SwiftGenerator {
         }
 
         // --- Display ---
-        \(getWindowSetupCode(fps: 30))
+        \(getWindowSetupCode(fps: 60))
         var camera: Camera2D = Camera2D(
             offset: Vector2(x: 0, y: 0),
             target: Vector2(x: 0, y: 0),
