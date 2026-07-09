@@ -112,7 +112,7 @@ struct SwiftGenerator {
                     totalCombinations *= stateCount
                 }
 
-                var nextStateTable: [Int] = Array(repeating: 0, count: totalCombinations)
+                var nextStateTable: [Int] = Array(repeating: -1, count: totalCombinations)
 
                 func rec(currentKey: Int, currentIndex: Int, pattern: [Int]) {
                     if currentIndex == keyElementsCount - 1 {
@@ -178,7 +178,9 @@ struct SwiftGenerator {
             private func nextCell(grid: NDGrid, idx: Int, neighborBuffer: inout [Int]) -> Int {
                 if let lookup = nextStateTable {
                     if let key = getLookupKey(grid: grid, idx: idx, neighborBuffer: &neighborBuffer) {
-                        return lookup[key]
+                        if lookup[key] != -1{
+                            return lookup[key]
+                        }
                     }
                 }
 
@@ -604,7 +606,7 @@ struct SwiftGenerator {
 
         \(getColorsPalette(transparentZero: true))
 
-        \(getWindowSetupCode(fps: 30))
+        \(getWindowSetupCode(fps: 60))
         var camera: Camera3D = Camera3D(
             position: Vector3(x: 100, y: 100, z: 100),
             target: Vector3(x: 0, y: 0, z: 0),
