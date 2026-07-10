@@ -13,6 +13,7 @@ Carl is a domain-specific language for defining cellular automata. It compiles `
 ## Prerequisites
 
 - [Swift](https://www.swift.org/install/) 6.0+
+- **Linux** : install the [system libraries required by Raylib](https://github.com/raysan5/raylib/wiki/Working-on-GNU-Linux).
 
 ## Installation
 
